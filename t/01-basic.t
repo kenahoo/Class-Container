@@ -3,7 +3,7 @@
 use strict;
 
 use Test;
-BEGIN { plan tests => 17 };
+BEGIN { plan tests => 18 };
 use Class::Container;
 
 use Params::Validate qw(:types);
@@ -130,6 +130,10 @@ ok $@, '/Daughter/', $@;
 
   # Special 'container' parameter shouldn't be shared among objects
   ok ($p->{container} ne $p->{son}{container});
+
+  # Check some of the formatting of show_containers()
+  my $string = $p->show_containers;
+  ok $string, '/\n  son -> StepSon/', $string;
 }
 
 
