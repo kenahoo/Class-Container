@@ -1,4 +1,4 @@
-package Class::Pluggable;
+package Class::Container;
 $VERSION = 0.01;
 
 use strict;
@@ -26,16 +26,22 @@ use strict;
 use Exception::Class( 'GenericError',
 		      'ParamError' => {isa => 'GenericError'} );
 
-use Params::Validate qw(:types);
+use Params::Validate qw(:all);
 Params::Validate::validation_options( on_fail => sub { ParamError->throw( error => join '', @_ ) } );
 
 my %VALID_PARAMS = ();
 my %CONTAINED_OBJECTS = ();
 
+sub new
+{
+    my $proto = shift;
+    my $class = ref $proto || $proto;
+    my @args = $class->create_contained_objects(@_);
+    return bless {validate @args, $class->validation_spec}, $class;
+}
+
 sub all_specs
 {
-    my ($self, %args) = @_;
-
     require B::Deparse;
     my %out;
 
@@ -46,9 +52,22 @@ sub all_specs
 	foreach my $name (sort keys %$params)
 	{
 	    my $spec = $params->{$name};
-	    my ($type, $default) = $spec->{isa} ?
-	                           ('object', "$spec->{isa}\->new") :
-				   ($spec->{parse}, $spec->{default});
+	    my ($type, $default);
+	    if ($spec->{isa}) {
+		my $obj_class;
+
+		$type = 'object';
+
+		if (exists $CONTAINED_OBJECTS{$class}{$name}) {
+		    $obj_class = $CONTAINED_OBJECTS{$class}{$name};
+		    $obj_class = $obj_class->{class} if ref $obj_class;
+
+		    $default = "$obj_class\->new";
+		}
+	    } else {
+		($type, $default) = ($spec->{parse}, $spec->{default});
+	    }
+
 	    if (ref($default) eq 'CODE') {
 		$default = 'sub ' . B::Deparse->new()->coderef2text($default);
 		$default =~ s/\s+/ /g;
@@ -68,7 +87,13 @@ sub all_specs
 	    }
 
 	    my $descr = $spec->{descr} || '(No description available)';
-	    $out{$class}{valid_params}{$name} = {type => $type, default => $default, descr => $descr};
+	    $out{$class}{valid_params}{$name} = { type => $type,
+						  pv_type => $spec->{type},
+						  default => $default,
+						  descr => $descr,
+						  required => defined $default || $spec->{optional} ? 0 : 1,
+						  public => exists $spec->{public} ? $spec->{public} : 1,
+						};
 	}
 
 	$out{$class}{contained_objects} = {};
@@ -78,7 +103,7 @@ sub all_specs
 	foreach my $name (sort keys %$contains)
 	{
 	    $out{$class}{contained_objects}{$name} = ref($contains->{$name}) 
-		? {map {$_, $contains->{$name}{$_}} qw(class delayed)}
+		? {map {$_, $contains->{$name}{$_}} qw(class delayed descr)}
 		: {class => $contains->{$name}, delayed => 0};
 	}
     }
@@ -188,10 +213,16 @@ sub _get_contained_args
     # pass on to its own contained objects
     my $allowed = $contained_class->allowed_params($args);
 
+    my $spec = $class->validation_spec;
+
     my %contained_args;
     foreach (keys %$allowed)
     {
-	$contained_args{$_} = delete $args->{$_} if exists $args->{$_};
+	$contained_args{$_} = $args->{$_} if exists $args->{$_};
+
+	# If both the container _and_ the contained object accept the
+	# same param we should not delete it.
+	delete $args->{$_} unless exists $spec->{$_};
     }
     return \%contained_args;
 }
@@ -329,14 +360,14 @@ __END__
 
 =head1 NAME
 
-Class::Pluggable - Glues object frameworks together transparently
+Class::Container - Glues object frameworks together transparently
 
 =head1 SYNOPSIS
 
  package Food;
  
- use Class::Pluggable;
- use base qw(Class::Pluggable);
+ use Class::Container;
+ use base qw(Class::Container);
  
  __PACKAGE__->valid_params(color  => {default => 'green'},
                            flavor => {default => 'hog'});
@@ -345,7 +376,11 @@ Class::Pluggable - Glues object frameworks together transparently
  
  sub new {
    my $package = shift;
-   my $self = bless { $package->create_contained_objects(@_) };
+   
+   # Build $self, possibly passing elements of @_ to 'ingredient' object
+   my $self = $package->SUPER::new(@_);
+
+   ... do any more initialization here ...
    return $self;
  }
 
@@ -357,7 +392,7 @@ which the Compiler, Lexer, Interpreter, Resolver, Buffer, and several
 other objects must create each other transparently, passing the
 appropriate parameters to the right class.
 
-The main features of C<Class::Pluggable> are:
+The main features of C<Class::Container> are:
 
 =over 4
 
@@ -381,9 +416,21 @@ class.
 
 =head1 METHODS
 
+=head2 new()
+
+Any class that inherits from C<Class::Container> should also inherit
+its C<new()> method.  You can do this simply by omitting it in your
+class, or by calling C<SUPER::new(@_)> as indicated in the SYNOPSIS.
+The C<new()> method ensures that the proper parameters and objects are
+passed to the proper constructor methods.
+
+A the moment, the only possible constructor method is C<new()>.  If
+you need to create other constructor methods, they should also call
+C<SUPER::new()>, or possibly even your class's C<new()> method.
+
 =head2 contained_objects()
 
-This method is used to register what other objects, if any, a given
+This class method is used to register what other objects, if any, a given
 class creates.  It is called with a hash whose keys are the parameter
 names that the contained class's constructor accepts, and whose values
 are the default class to create an object of.
@@ -395,12 +442,10 @@ the following code:
 
 This defines the relationship between the C<HTML::Mason::Compiler>
 class and the class it creates to go in its C<lexer> slot.  The
-C<HTML::Mason::Compiler> class "has a" C<lexer>.  If the C<<
+C<HTML::Mason::Compiler> class "has a" C<lexer>.  The C<<
 HTML::Mason::Compiler->new() >> method will accept a C<lexer>
-parameter and that, if no such parameter is given, then an object of
-the C<HTML::Mason::Lexer> class should be constructed.
-
-=head2 create_contained_objects()
+parameter and, if no such parameter is given, an object of the
+C<HTML::Mason::Lexer> class should be constructed.
 
 We also implement a bit of magic here, so that if C<<
 HTML::Mason::Compiler->new() >> is called with a C<lexer_class>
@@ -441,6 +486,12 @@ C<Params::Validate>.  This means that any of these six parameter
 names, plus the C<lexer_class> parameter (because of the
 C<contained_objects()> specification given earlier), are valid
 arguments to the Compiler's C<new()> method.
+
+Note that there are also some C<parse> attributes declared.  These
+have nothing to do with C<Class::Container> or C<Params::Validate> -
+any extra entries like this are simply ignored, so you are free to put
+extra information in the specifications as long as it doesn't overlap
+with what C<Class::Container> or C<Params::Validate> are looking for.
 
 =head1 SEE ALSO
 
