@@ -2,7 +2,18 @@ Revision history for Perl extension Class::Framework.
 
 0.09
 
- - Added support for "decorator" classes, via the decorates() method.
+ - Use Carp::croak() instead of die() in most places when throwing a
+   fatal error.
+
+ - Fixed a problem in dump_parameters() in which attributes from
+   superclasses weren't getting dumped.
+
+ - The valid_params() method now always returns a hashref, possibly
+   empty (when initialization hasn't happened yet), instead of
+   sometimes returning undef.
+
+ - Added experimental support for "decorator" classes, via the
+   decorates() method.
 
  - Fixed the credits in the AUTHOR section to better reflect reality.
 

@@ -8,7 +8,7 @@
 use strict;
 
 use Test;
-BEGIN { plan tests => 77 };
+BEGIN { plan tests => 86 };
 use Class::Container;
 
 use Carp; $SIG{__DIE__} = \&Carp::confess;
@@ -275,17 +275,35 @@ ok $@, '/Daughter/', "Make sure error messages contain the name of the class";
   Top->contained_objects(child => 'Child');
   
   local @Child::ISA = qw(Class::Container);
-  Child->valid_params(bar => {type => SCALAR});
-  Child->contained_objects();
+  Child->valid_params(bar => {type => SCALAR}, grand_child => {isa => 'GrandChild'});
+  Child->contained_objects(grand_child => 'GrandChild');
   
-  my $dump = Child->new(bar => 'BAR')->dump_parameters;
+  local @GrandChild::ISA = qw(Class::Container);
+  GrandChild->valid_params(baz => {type => SCALAR});
+  GrandChild->contained_objects();
+
+  local @GrandSibling::ISA = qw(GrandChild);
+
+  my $dump = GrandSibling->new(baz => 'BAZ')->dump_parameters;
   ok keys(%$dump), 1;
-  ok $dump->{bar}, 'BAR';
-  
-  $dump = Top->new(foo => 'FOO', bar => 'BAR')->dump_parameters;
+  ok $dump->{baz}, 'BAZ', "Sibling has baz=BAZ";
+
+  $dump = Child->new(bar => 'BAR', baz => 'BAZ')->dump_parameters;
   ok keys(%$dump), 2;
+  ok $dump->{bar}, 'BAR';
+  ok $dump->{baz}, 'BAZ';
+
+  $dump = Child->new(bar => 'BAR', baz => 'BAZ', grand_child_class => 'GrandChild')->dump_parameters;
+  ok keys(%$dump), 2;
+  ok $dump->{bar}, 'BAR';
+  ok $dump->{baz}, 'BAZ';
+  
+  $dump = Top->new(foo => 'FOO', bar => 'BAR', baz => 'BAZ')->dump_parameters;
+  ok keys(%$dump), 3;
   ok $dump->{foo}, 'FOO';
   ok $dump->{bar}, 'BAR';
+  ok $dump->{baz}, 'BAZ';
+  
 }
 
 {
@@ -367,4 +385,12 @@ ok $@, '/Daughter/', "Make sure error messages contain the name of the class";
   ok $d;
   ok $d->{one}, 1;
   ok $d->{two}, 2;
+}
+
+{
+  # Make sure valid_params() gives sensible null output
+  local @Nonexistent::ISA = qw(Class::Container);
+  my $params = Nonexistent->valid_params;
+  ok ref($params), 'HASH';
+  ok keys(%$params), 0;
 }
