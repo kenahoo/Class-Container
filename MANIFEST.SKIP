@@ -1,0 +1,9 @@
+^blib
+^Class-Container
+^\.cvsignore$
+CVS
+^Makefile$
+~$
+\.SKIP$
+\.bak$
+^pm_to_blib$
