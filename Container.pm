@@ -1,8 +1,11 @@
 package Class::Container;
-$VERSION = '0.01_05';
-$VERSION = eval $VERSION;
+$VERSION = '0.01_05';     # Underscore in string makes it a beta for CPAN
+$VERSION = eval $VERSION; # Number makes it correct for perl
 
-BEGIN { eval "use Scalar::Util qw(weaken)" }  # Optional
+BEGIN {
+  eval "use Scalar::Util qw(weaken)"; # Optional
+  warn "Scalar::Util not detected - memory leaks may result\n" if $@ and $^W;
+}
 
 use strict;
 
