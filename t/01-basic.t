@@ -8,7 +8,7 @@
 use strict;
 
 use Test;
-BEGIN { plan tests => 46 };
+BEGIN { plan tests => 44 };
 use Class::Container;
 
 use Params::Validate qw(:types);
@@ -269,8 +269,4 @@ ok $@, '/Daughter/', $@;
   
   ok 'Top'->valid_params;
   ok 'Top'->valid_params->{foo}{type}, SCALAR;
-
-  my $t = new Top(foo => 1);
-  ok $t->valid_params;
-  ok $t->valid_params->{foo}{type}, SCALAR;
 }

@@ -160,7 +160,7 @@ sub _expire_caches {
 }
 
 sub valid_params {
-  my $class = ref($_[0]) ? ref(shift) : shift;
+  my $class = shift;
   if (@_) {
     $class->_expire_caches;
     $VALID_PARAMS{$class} = @_ == 1 && !defined($_[0]) ? {} : {@_};
@@ -513,9 +513,6 @@ C<Child> will likely be necessary.
 
 =head1 METHODS
 
-The most important methods provided are C<valid_params()> and
-C<contained_objects()>, both of which are class methods.
-
 =head2 new()
 
 Any class that inherits from C<Class::Container> should also inherit
@@ -568,28 +565,38 @@ To declare an object as "delayed", call this method like this:
   __PACKAGE__->contained_objects( train => { class => 'Big::Train',
                                              delayed => 1 } );
 
-=head2 __PACKAGE__->valid_params()
+=head2 __PACKAGE__->valid_params(...)
 
-The C<valid_params()> method is similar to the C<contained_objects()>
-method in that it is a class method that declares properties of the
-current class.  It is called in order to register a set of parameters
-which are valid for a class's C<new()> constructor method.  It is
-called with a hash that contains parameter names as its keys and
-validation specifications as values.  This validation specification
-is largely the same as that used by the C<Params::Validate> module,
-because we use C<Params::Validate> internally.
+Specifies the parameters accepted by this class's C<new()> method as a
+set of key/value pairs.  Any parameters accepted by a
+superclass/subclass will also be accepted, as well as any parameters
+accepted by contained objects.  This method is a get/set accessor
+method, so it returns a reference to a hash of these key/value pairs.
+As a special case, if you wish to set the valid params to an empty set
+and you previously set it to a non-empty set, you may call 
+C<< __PACKAGE__->valid_params(undef) >>.
 
-As an example, HTML::Mason::Compiler contains the following:
+C<valid_params()> is called with a hash that contains parameter names
+as its keys and validation specifications as values.  This validation
+specification is largely the same as that used by the
+C<Params::Validate> module, because we use C<Params::Validate>
+internally.
 
+As an example, consider the following situation:
+
+  use Class::Container;
+  use Params::Validate qw(:types);
   __PACKAGE__->valid_params
       (
-       allow_globals        => { parse => 'list',   type => ARRAYREF, default => [] },
-       default_escape_flags => { parse => 'string', type => SCALAR,   default => '' },
+       allow_globals        => { type => ARRAYREF, parse => 'list',   default => [] },
+       default_escape_flags => { type => SCALAR,   parse => 'string', default => '' },
        lexer                => { isa => 'HTML::Mason::Lexer' },
-       preprocess           => { parse => 'code',   type => CODEREF,  optional => 1 },
-       postprocess_perl     => { parse => 'code',   type => CODEREF,  optional => 1 },
-       postprocess_text     => { parse => 'code',   type => CODEREF,  optional => 1 },
+       preprocess           => { type => CODEREF,  parse => 'code',   optional => 1 },
+       postprocess_perl     => { type => CODEREF,  parse => 'code',   optional => 1 },
+       postprocess_text     => { type => CODEREF,  parse => 'code',   optional => 1 },
       );
+  
+  __PACKAGE__->contained_objects( lexer => 'HTML::Mason::Lexer' );
 
 The C<type>, C<default>, and C<optional> parameters are part of the
 validation specification used by C<Params::Validate>.  The various
