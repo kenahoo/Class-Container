@@ -8,7 +8,7 @@
 use strict;
 
 use Test;
-BEGIN { plan tests => 44 };
+BEGIN { plan tests => 45 };
 use Class::Container;
 
 use Params::Validate qw(:types);
@@ -157,6 +157,9 @@ ok $@, '/Daughter/', $@;
 
   my $child = 'Subclass'->new;
   ok ref($child->{foo}), 'Bar', 'Subclass contained_object should override superclass';
+
+  my $spec = 'Subclass'->validation_spec;
+  ok $spec->{foo}{isa}, 'Bar';
 }
 
 {
