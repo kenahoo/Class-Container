@@ -1,5 +1,39 @@
 Revision history for Perl extension Class::Framework.
 
+0.05  Thu Jun 27 16:53:41 EST 2002
+
+ - Fixed a problem in create_contained_objects() in which a 'foo_class'
+   parameter wouldn't get properly passsed to all the contained objects
+   that needed to see it.
+
+ - Added a documentation section "Scenario" explaining the main benefits
+   of using the module.
+
+ - Improved the output of show_containers(), notably the names of
+   delayed classes
+
+ - Merge $self->{container}{delayed} into $self->{container}{contained},
+   with a 'delayed' property.  This allows simplification of the rest of
+   the code in several places, notably the show_containers() routine.
+
+ - Simplify show_containers() a little, and make it more accurate on
+   contained objects' classes
+
+ - Fixed a doc error in the first example
+
+ - Added a bit in the first doc paragraph, saying that any of the
+   Mason objects can be replaced by a subclass.
+
+ - Added an internal comment about the strategy inside the
+   allowed_params method.
+
+ - Simplified the allowed_params method internally.
+
+ - Got rid of special-casing to check for circular containment
+   relationships.  This seemed to have been added for HTML::Mason, but
+   all Mason tests (as well as all Class::Container tests) still pass
+   when I remove it.
+
 0.04  Wed Jun 26 19:15:26 EST 2002
 
  - Add the show_containers() method, which should be a godsend during
