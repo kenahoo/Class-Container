@@ -32,5 +32,6 @@ WriteMakefile
      AUTHOR     => 'Ken Williams <ken@mathforum.org>') : 
     ()
    ),
+   NO_META => 1,
   );
 
