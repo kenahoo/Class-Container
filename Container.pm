@@ -246,7 +246,7 @@ sub get_contained_objects
 
     no strict 'refs';
     foreach my $superclass (@{ "${class}::ISA" }) {
-	next unless $superclass->can('get_contained_objects');
+	next unless $superclass->isa(__PACKAGE__);
 	my %superparams = $superclass->get_contained_objects;
 	@c{keys %superparams} = values %superparams;  # Add %superparams to %c
     }
@@ -341,7 +341,7 @@ sub validation_spec
 
     no strict 'refs';
     foreach my $superclass (@{ "${class}::ISA" }) {
-	next unless $superclass->can('validation_spec');
+	next unless $superclass->isa(__PACKAGE__);
 	my $superparams = $superclass->validation_spec;
 	@p{keys %$superparams} = values %$superparams;
     }

@@ -20,6 +20,7 @@ my $SCALAR = SCALAR;   # So we don't have to keep importing it below
 # Define the relationships
 {
   package Parent;
+  push @Parent::ISA, 'Foo';  # Make sure it works with non-container superclasses
   # Has one son and several daughters
   __PACKAGE__->valid_params( parent_val => { type => $SCALAR },
 			     son => {isa => 'Son'},
