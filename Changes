@@ -6,6 +6,8 @@ Revision history for Perl extension Class::Framework.
 
  - Fixed the credits in the AUTHOR section to better reflect reality.
 
+ - Added a Module::Build-style Build.PL script for installation.
+
 0.08  Thu Aug 29 17:11:20 EST 2002
 
  - Added the dump_parameters() method, which returns a hash reference
