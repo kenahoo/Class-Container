@@ -43,6 +43,7 @@ my %VALID_PARAMS = ();
 my %CONTAINED_OBJECTS = ();
 my %VALID_CACHE = ();
 my %CONTAINED_CACHE = ();
+my %DECORATEES = ();
 
 sub new
 {
@@ -200,6 +201,43 @@ sub contained_objects
     }
 }
 
+sub _decorator_AUTOLOAD {
+  my $self = shift;
+  no strict 'vars';
+  my ($method) = $AUTOLOAD =~ /([^:]+)$/;
+  return if $method eq 'DESTROY';
+  die qq{Can't locate object method "$method" via package $self} unless ref($self);
+  my $subr = $self->{_decorates}->can($method)
+    or die qq{Can't locate object method "$method" via package } . ref($self);
+  unshift @_, $self->{_decorates};
+  goto $subr;
+}
+
+sub _decorator_CAN {
+  my ($self, $method) = @_;
+  return $self->SUPER::can($method) if $self->SUPER::can($method);
+  if (ref $self) {
+    return $self->{_decorates}->can($method) if $self->{_decorates};
+    return undef;
+  } else {
+    return $DECORATEES{$self}->can($method);
+  }
+}
+
+sub decorates {
+  my ($class, $super) = @_;
+  
+  no strict 'refs';
+  $super ||= ${$class . '::ISA'}[0];
+  
+  # Pass through unknown method invocations
+  *{$class . '::AUTOLOAD'} = \&_decorator_AUTOLOAD;
+  *{$class . '::can'} = \&_decorator_CAN;
+  
+  $DECORATEES{$class} = $super;
+  $VALID_PARAMS{$class}{_decorates} = { isa => $super, optional => 1 };
+}
+
 sub container {
   my $self = shift;
   die "The ", ref($self), "->container() method requires installation of Scalar::Utils" unless $HAVE_WEAKEN;
@@ -225,9 +263,23 @@ sub create_contained_objects
     my $class = shift;
 
     my $c = $class->get_contained_object_spec;
-    return {@_, container => {}} unless %$c;
+    return {@_, container => {}} unless %$c or $DECORATEES{$class};
     
     my %args = @_;
+    
+    if ($DECORATEES{$class}) {
+      # Fix format
+      $args{decorate_class} = [$args{decorate_class}]
+	if $args{decorate_class} and !ref($args{decorate_class});
+      
+      # Figure out which class to decorate
+      my $decorate;
+      if (my $c = $args{decorate_class}) {
+	$decorate = @$c ? shift @$c : undef;
+	delete $args{decorate_class} unless @$c;
+      }
+      $c->{_decorates} = { class => $decorate } if $decorate;
+    }      
 
     # This one is special, don't pass to descendants
     my $container_stuff = delete($args{container}) || {};
@@ -235,13 +287,13 @@ sub create_contained_objects
     keys %$c; # Reset the iterator - why can't I do this in get_contained_object_spec??
     my %contained_args;
     my %to_create;
-
+    
     while (my ($name, $spec) = each %$c) {
       # Figure out exactly which class to make an object of
       my ($contained_class, $c_args) = $class->_get_contained_args($name, \%args);
       @contained_args{ keys %$c_args } = ();  # Populate with keys
-      $to_create{$name}{class} = $contained_class;
-      $to_create{$name}{args} = $c_args;
+      $to_create{$name} = { class => $contained_class,
+			    args => $c_args };
     }
     
     while (my ($name, $spec) = each %$c) {
@@ -262,6 +314,7 @@ sub create_contained_objects
     # our contained object specs but not in ours.
     my $my_spec = $class->validation_spec;
     delete @args{ grep {!exists $my_spec->{$_}} keys %contained_args };
+    delete $c->{_decorates} if $DECORATEES{$class};
 
     $args{container} = $container_stuff;
     return \%args;
@@ -362,7 +415,7 @@ sub allowed_params
 
     my $c = $class->get_contained_object_spec;
     my %p = %{ $class->validation_spec };
-
+    
     foreach my $name (keys %$c)
     {
 	# Can accept a 'foo' parameter - should already be in the validation_spec.
@@ -374,7 +427,7 @@ sub allowed_params
 	my $contained_class;
 	if ( exists $args->{"${name}_class"} ) {
 	  $contained_class = $args->{"${name}_class"};
-	  $p{"${name}_class"} = { type => SCALAR, parse => 'string' };  # Add to spec
+	  $p{"${name}_class"} = { type => SCALAR };  # Add to spec
 	} else {
 	  $contained_class = $c->{$name}{class};
 	}
@@ -394,7 +447,7 @@ sub allowed_params
 }
 
 sub _iterate_ISA {
-  my ($class, $look_in, $cache_in, $add_container) = @_;
+  my ($class, $look_in, $cache_in, $add) = @_;
 
   return $cache_in->{$class} if $cache_in->{$class};
 
@@ -403,24 +456,24 @@ sub _iterate_ISA {
   no strict 'refs';
   foreach my $superclass (@{ "${class}::ISA" }) {
     next unless $superclass->isa(__PACKAGE__);
-    my $superparams = $superclass->_iterate_ISA($look_in, $cache_in, $add_container);
+    my $superparams = $superclass->_iterate_ISA($look_in, $cache_in, $add);
     @out{keys %$superparams} = values %$superparams;
   }
   if (my $x = $look_in->{$class}) {
     @out{keys %$x} = values %$x;
   }
   
-  $out{container} = { type => HASHREF } if $add_container;  # Urgh
-
+  @out{keys %$add} = values %$add if $add;
+  
   return $cache_in->{$class} = \%out;
 }
 
 sub get_contained_object_spec {
-  return (ref($_[0]) || shift)->_iterate_ISA(\%CONTAINED_OBJECTS, \%CONTAINED_CACHE);
+  return (ref($_[0]) || $_[0])->_iterate_ISA(\%CONTAINED_OBJECTS, \%CONTAINED_CACHE);
 }
 
 sub validation_spec {
-  return (ref($_[0]) || shift)->_iterate_ISA(\%VALID_PARAMS, \%VALID_CACHE, 1);
+  return (ref($_[0]) || $_[0])->_iterate_ISA(\%VALID_PARAMS, \%VALID_CACHE, { container => {type => HASHREF} });
 }
 
 1;
@@ -740,13 +793,16 @@ you can override this method in your class, something like so:
 
 =head1 SEE ALSO
 
-L<Params::Validate>, L<HTML::Mason>
+L<Params::Validate>
 
 =head1 AUTHOR
 
-Ken Williams <ken@mathforum.org>, based extremely heavily on
-collaborative work with Dave Rolsky <autarch@urth.org> and Jonathan
-Swartz <swartz@pobox.com> on the HTML::Mason project.
+Originally by Ken Williams <ken@mathforum.org> and Dave Rolsky
+<autarch@urth.org> for the HTML::Mason project.  Important feedback
+contributed by Jonathan Swartz <swartz@pobox.com>.  Extended by Ken
+Williams for the AI::Categorizer project.
+
+Currently maintained by Ken Williams.
 
 =head1 COPYRIGHT
 
