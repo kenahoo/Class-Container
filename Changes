@@ -1,5 +1,16 @@
 Revision history for Perl extension Class::Framework.
 
+0.04
+
+ - Add the show_containers() method, which should be a godsend during
+   debugging.
+
+ - Convert contained_objects() string specs to hashes upon input, rather
+   than checking them every time they're used later in the code.
+
+ - Change " if (%args)" to " if (keys %args)", which is more officially
+   correct (though both would work in this particular case).
+
 0.03  Fri Jun 21 17:44:37 EST 2002
 
  - Subclasses can now override contained_objects settings of their
