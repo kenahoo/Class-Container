@@ -134,8 +134,11 @@ sub dump_parameters {
   foreach my $param (keys %{ $class->validation_spec }) {
     next if $param eq 'container';
     my $spec = $class->validation_spec->{$param};
-    next if (exists $spec->{default} || $spec->{optional}) and !defined $self->{$param};
-    $params{$param} = $self->{$param};
+    if (!defined $self->{$param}) {
+      $params{$param} = $spec->{default} if exists $spec->{default};
+    } else {
+      $params{$param} = $self->{$param};
+    }
   }
   
   foreach my $name (keys %{ $class->get_contained_object_spec }) {
