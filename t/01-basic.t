@@ -3,7 +3,7 @@
 use strict;
 
 use Test;
-BEGIN {plan tests => 6};
+BEGIN {plan tests => 7, todo => [7]};
 use Class::Container;
 
 use Params::Validate qw(:types);
@@ -55,6 +55,7 @@ my $SCALAR = SCALAR;   # So we don't have to keep importing it below
 
 # Try making an object
 ok eval {new Daughter(hair => 'long')};
+warn $@ if $@;
 
 # Should fail, missing required parameter
 ok !eval {new Parent()};
@@ -64,17 +65,25 @@ my %args = (parent_val => 7,
 
 # Try creating top-level object
 ok eval {new Parent(%args)};
+warn $@ if $@;
 
 # Make sure sub-objects are created with proper values
 ok eval {Parent->new(%args)->{son}->{mood} eq 'bubbly'};
+warn $@ if $@;
 
 
 # Create a delayed object
 ok eval {my $p = new Parent(%args);
 	 $p->create_delayed_object('daughter')};
+warn $@ if $@;
 
 # Create a delayed object with parameters
 ok eval {my $p = new Parent(%args);
 	 my $d = $p->create_delayed_object('daughter', hair => 'short');
 	 $d->{hair} eq 'short';
        };
+warn $@ if $@;
+
+# Make sure error messages contain the name of the class
+eval {new Daughter(foo => 'invalid')};
+ok $@, '/Daughter/', $@;
