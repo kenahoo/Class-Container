@@ -19,7 +19,6 @@ WriteMakefile
              },
    'PREREQ_PM' => {
 		   Params::Validate => '0.14',
-		   Exception::Class => '1.00',
 		  },
    ($] >= 5.005 ?    ## Add these new keywords supported since 5.005
     (ABSTRACT_FROM => $name, # retrieve abstract from module

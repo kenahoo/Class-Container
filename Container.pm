@@ -1,5 +1,5 @@
 package Class::Container;
-$VERSION = '0.01_02';
+$VERSION = '0.01_04';
 $VERSION = eval $VERSION;
 
 use strict;
@@ -24,11 +24,8 @@ use strict;
 # in the return value.  This lets the creator be totally ignorant of
 # the creation parameters of any objects it creates.
 
-use Exception::Class( 'GenericError',
-		      'ParamError' => {isa => 'GenericError'} );
-
 use Params::Validate qw(:all);
-Params::Validate::validation_options( on_fail => sub { ParamError->throw( error => join '', @_ ) } );
+Params::Validate::validation_options( on_fail => sub { die @_ } );
 
 my %VALID_PARAMS = ();
 my %CONTAINED_OBJECTS = ();
@@ -135,8 +132,7 @@ sub create_contained_objects
 	my $delayed       = ref($spec) ? $spec->{delayed} : 0;
 	if (exists $args{$name}) {
 	    # User provided an object
-	    ParamError->throw(error => "Cannot provide a '$name' object, its creation is delayed")
-		if $delayed;
+	    die "Cannot provide a '$name' object, its creation is delayed" if $delayed;
 
 	    #
 	    # We still need to delete any arguments that _would_ have
@@ -170,11 +166,11 @@ sub create_delayed_object
     my ($self, $name, %args) = @_;
 
     # It just has to exist.  An empty hash is fine.
-    ParamError->throw(error => "Unknown delayed object '$name'")
+    die "Unknown delayed object '$name'"
 	unless exists $self->{"_delayed_$name"}{args};
 
     my $class = $self->{"_delayed_$name"}{class}
-	or ParamError->throw(error => "Unknown class for delayed object '$name'");
+	or die "Unknown class for delayed object '$name'";
 
     $self->_load_module($class);
     return $class->new( %{ $self->{"_delayed_$name"}{args} }, %args );
@@ -184,7 +180,7 @@ sub delayed_object_params
 {
     my ($self, $name, %args) = @_;
 
-    ParamError->throw(error => "Unknown delayed object '$name'")
+    die "Unknown delayed object '$name'"
 	unless exists $self->{"_delayed_$name"}{args};
 
     if (%args)
@@ -199,7 +195,7 @@ sub _get_contained_args
 {
     my ($class, $contained_class, $args) = @_;
 
-    ParamError->throw(error => "Invalid class name '$contained_class'")
+    die "Invalid class name '$contained_class'"
 	unless $contained_class =~ /^[\w:]+$/;
 
     $class->_load_module($contained_class);
@@ -239,7 +235,7 @@ sub _load_module {
     {
 	no strict 'refs';
 	eval "use $module";
-	GenericError->throw(error => $@) if $@;
+	die $@ if $@;
     }
 }
 
