@@ -10,7 +10,7 @@ BEGIN {
     Scalar::Util->import('weaken');
     $HAVE_WEAKEN = 1;
   };
-  warn "Scalar::Util not detected - memory leaks may result\n" if !$HAVE_WEAKEN and $^W;
+  warn "Scalar::Util not detected - container() method not available\n" if !$HAVE_WEAKEN and $^W;
   
   *weaken = sub {} unless defined &weaken;
 }

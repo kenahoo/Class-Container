@@ -3,8 +3,8 @@ use ExtUtils::MakeMaker;
 
 unless (eval "use Scalar::Util; 1") {
   warn("You seem not to have the Scalar::Util module installed.\n" .
-       "Its installation is highly recommended for Class::Container to avoid memory leaks.\n");
-  sleep 5;
+       "Its installation is recommended (but not required) for Class::Container - see the README.\n");
+  sleep 4;
 }
 
 my $module = 'Class::Container';
