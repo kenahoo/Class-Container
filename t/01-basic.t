@@ -8,7 +8,7 @@
 use strict;
 
 use Test;
-BEGIN { plan tests => 75 };
+BEGIN { plan tests => 77 };
 use Class::Container;
 
 use Carp; $SIG{__DIE__} = \&Carp::confess;
@@ -77,40 +77,33 @@ my $SCALAR = SCALAR;   # So we don't have to keep importing it below
   push @Streamer::ISA, 'Toy';
 }
 
-# Try making an object
-ok eval {new Daughter(hair => 'long')};
-warn $@ if $@;
+eval {new Daughter(hair => 'long')};
+ok $@, '', "Try making an object";
 
-# Should fail, missing required parameter
-ok !eval {new Parent()};
+eval {new Parent()};
+ok $@, '/mood/', "Should fail, missing required parameter";
 
 my %args = (parent_val => 7,
 	    mood => 'bubbly');
 
-# Try creating top-level object
-ok eval {new Parent(%args)};
-warn $@ if $@;
+eval {new Parent(%args)};
+ok $@, '', "Try creating top-level object";
 
-# Make sure sub-objects are created with proper values
-ok eval {Parent->new(%args)->{son}->{mood} eq 'bubbly'};
-warn $@ if $@;
+my $mood = eval {Parent->new(%args)->{son}->{mood}};
+ok $mood, 'bubbly';
+ok $@, '', "Make sure sub-objects are created with proper values";
 
 
-# Create a delayed object
-ok eval {my $p = new Parent(%args);
-	 $p->create_delayed_object('daughter')};
-warn $@ if $@;
+eval {my $p = new Parent(%args);
+      $p->create_delayed_object('daughter')};
+ok $@, '', "Create a delayed object";
 
-# Create a delayed object with parameters
-ok eval {my $p = new Parent(%args);
-	 my $d = $p->create_delayed_object('daughter', hair => 'short');
-	 $d->{hair} eq 'short';
-       };
-warn $@ if $@;
+my $d = eval {Parent->new(%args)->create_delayed_object('daughter', hair => 'short')};
+ok $@, '', "Create a delayed object with parameters";
+ok $d->{hair}, 'short', "Make sure parameters are propogated to delayed object";
 
-# Make sure error messages contain the name of the class
 eval {new Daughter(foo => 'invalid')};
-ok $@, '/Daughter/', $@;
+ok $@, '/Daughter/', "Make sure error messages contain the name of the class";
 
 # Make sure we can override class names
 {
@@ -121,8 +114,8 @@ ok $@, '/Daughter/', $@;
 			      son_class => 'StepSon')};
   warn $@ if $@;
 
-  ok my $d = eval {$p->create_delayed_object('daughter')};
-  warn $@ if $@;
+  my $d = eval {$p->create_delayed_object('daughter')};
+  ok $@, '';
 
   ok ref($d), 'StepDaughter';
   ok ref($p->{son}), 'StepSon';
