@@ -3,7 +3,7 @@
 use strict;
 
 use Test;
-BEGIN {plan tests => 7, todo => [7]};
+BEGIN {plan tests => 13, todo => [7]};
 use Class::Container;
 
 use Params::Validate qw(:types);
@@ -12,7 +12,7 @@ my $SCALAR = SCALAR;   # So we don't have to keep importing it below
 # Create some boilerplate classes
 {
   no strict 'refs';
-  foreach my $class (qw(Parent Boy Son Slingshot Daughter)) {
+  foreach my $class (qw(Parent Boy Toy Daughter)) {
     push @{$class.'::ISA'}, 'Class::Container';
   }
 }
@@ -33,7 +33,7 @@ my $SCALAR = SCALAR;   # So we don't have to keep importing it below
 {
   package Boy;
   __PACKAGE__->valid_params( eyes => { default => 'brown', type => $SCALAR },
-			     toy => {isa => 'Slingshot'});
+			     toy => {isa => 'Toy'});
   __PACKAGE__->contained_objects( toy => 'Slingshot' );
 }
 
@@ -45,12 +45,24 @@ my $SCALAR = SCALAR;   # So we don't have to keep importing it below
 
 {
   package Slingshot;
+  push @Slingshot::ISA, 'Toy';
   __PACKAGE__->valid_params( weapon => { default => 'rock', type => $SCALAR } );
 }
 
 {
   package Daughter;
   __PACKAGE__->valid_params( hair => { default => 'short' } );
+}
+
+{
+  package StepDaughter;
+  push @StepDaughter::ISA, 'Daughter';
+  __PACKAGE__->valid_params( toy => {isa => 'Toy'} );
+  __PACKAGE__->contained_objects( toy => { class => 'Toy'} );
+}
+{
+  push @StepSon::ISA, 'Son';
+  push @Ball::ISA, 'Toy';
 }
 
 # Try making an object
@@ -87,3 +99,24 @@ warn $@ if $@;
 # Make sure error messages contain the name of the class
 eval {new Daughter(foo => 'invalid')};
 ok $@, '/Daughter/', $@;
+
+# Make sure we can override class names
+{
+  local $::verbose=1;
+  ok my $p = eval {new Parent(mood => 'foo', parent_val => 1,
+			      daughter_class => 'StepDaughter',
+			      toy_class => 'Ball',
+			      son_class => 'StepSon')};
+  warn $@ if $@;
+
+  ok my $d = eval {$p->create_delayed_object('daughter')};
+  warn $@ if $@;
+
+  ok ref($d), 'StepDaughter';
+  ok ref($p->{son}), 'StepSon';
+
+  # Note - if one of these fails and the other succeeds, then we're
+  # not properly passing 'toy_class' to both son & daughter classes.
+  ok ref($d->{toy}), 'Ball';
+  ok ref($p->{son}{toy}), 'Ball';
+}

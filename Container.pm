@@ -147,7 +147,9 @@ sub create_contained_objects
     # Typically $self doesn't exist yet, $_[0] is a string classname
     my ($class, %args) = @_;
 
-    my %c = $class->get_contained_objects;
+    my %c = $class->get_contained_object_spec;
+    my %contained_args;
+
     while (my ($name, $spec) = each %c) {
 	my $default_class = ref($spec) ? $spec->{class}   : $spec;
 	my $delayed       = ref($spec) ? $spec->{delayed} : 0;
@@ -155,7 +157,6 @@ sub create_contained_objects
 	    # User provided an object
 	    die "Cannot provide a '$name' object, its creation is delayed" if $delayed;
 
-	    #
 	    # We still need to delete any arguments that _would_ have
 	    # been given to this object's constructor (if the object
 	    # had not been given).  This allows a container class to
@@ -163,7 +164,8 @@ sub create_contained_objects
 	    # accepting an already-constructed object as one of its
 	    # params.
 	    #
-	    $class->_get_contained_args(ref $args{$name}, \%args);
+	    my $c_args = $class->_get_contained_args(ref $args{$name}, \%args);
+	    @contained_args{ keys %$c_args } = ();
 	    next;
 	}
 
@@ -171,13 +173,22 @@ sub create_contained_objects
 	my $contained_class = delete $args{"${name}_class"} || $default_class;
 	next unless $contained_class;
 
+	my $c_args = $class->_get_contained_args($contained_class, \%args);
+	@contained_args{ keys %$c_args } = ();
+
 	if ($delayed) {
-	    $args{container}{delayed}{$name}{args} = $class->_get_contained_args($contained_class, \%args);
-	    $args{container}{delayed}{$name}{class} = $contained_class;
+	  $args{container}{delayed}{$name}{args} = $c_args;
+	  $args{container}{delayed}{$name}{class} = $contained_class;
 	} else {
-	    $args{$name} = $class->_make_contained_object($contained_class, \%args);
+	  $args{$name} = $contained_class->new(%$c_args);
 	}
     }
+
+    # Delete things that we're not going to use - things that are in
+    # our contained object specs but not in ours.
+    my $my_spec = $class->validation_spec;
+    delete @args{ grep {!exists $my_spec->{$_}} keys %contained_args };
+
     $args{container} ||= {};
 
     return %args;
@@ -187,7 +198,7 @@ sub create_delayed_object
 {
     my ($self, $name, %args) = @_;
     $args{container}{container} = $self;
-    weaken($args{container}{container}) if $INC{'WeakRef.pm'} || $INC{'Scalar/Util.pm'};
+    weaken($args{container}{container}) if $INC{'Scalar/Util.pm'};
     return $self->call_method($name, 'new', %args);
 }
 
@@ -221,26 +232,11 @@ sub _get_contained_args
     # pass on to its own contained objects
     my $allowed = $contained_class->allowed_params($args);
 
-    my $spec = $class->validation_spec;
-
     my %contained_args;
-    foreach (keys %$allowed)
-    {
+    foreach (keys %$allowed) {
 	$contained_args{$_} = $args->{$_} if exists $args->{$_};
-
-	# If both the container _and_ the contained object accept the
-	# same param we should not delete it, it goes to both (policy???)
-	delete $args->{$_} unless exists $spec->{$_};
     }
     return \%contained_args;
-}
-
-sub _make_contained_object
-{
-    my ($class, $contained_class, $args) = @_;
-
-    my $contained_args = $class->_get_contained_args($contained_class, $args);
-    return $contained_class->new(%$contained_args);
 }
 
 sub _load_module {
@@ -256,7 +252,7 @@ sub _load_module {
 
 # Iterate through this object's @ISA and find all entries in
 # 'contained_objects' list.  Return as a hash.
-sub get_contained_objects
+sub get_contained_object_spec
 {
     my $class = ref($_[0]) || shift;
 
@@ -265,7 +261,7 @@ sub get_contained_objects
     no strict 'refs';
     foreach my $superclass (@{ "${class}::ISA" }) {
 	next unless $superclass->isa(__PACKAGE__);
-	my %superparams = $superclass->get_contained_objects;
+	my %superparams = $superclass->get_contained_object_spec;
 	@c{keys %superparams} = values %superparams;  # Add %superparams to %c
     }
 
@@ -279,7 +275,7 @@ sub allowed_params
 
     my %p = %{ $class->validation_spec };
 
-    my %c = $class->get_contained_objects;
+    my %c = $class->get_contained_object_spec;
 
     foreach my $name (keys %c)
     {
