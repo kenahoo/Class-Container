@@ -1,6 +1,8 @@
 package Class::Container;
-$VERSION = '0.01_04';
+$VERSION = '0.01_05';
 $VERSION = eval $VERSION;
+
+BEGIN { eval "use Scalar::Util qw(weaken)" }  # Optional
 
 use strict;
 
@@ -35,6 +37,7 @@ sub new
     my $proto = shift;
     my $class = ref $proto || $proto;
     my @args = $class->create_contained_objects(@_);
+    local $Params::Validate::called = "$class->new()";
     return bless {validate @args, $class->validation_spec}, $class;
 }
 
@@ -121,6 +124,24 @@ sub contained_objects
     $CONTAINED_OBJECTS{$class} = {@_};
 }
 
+sub container {
+  my $self = shift;
+  return $self->{container}{container};
+}
+
+sub call_method {
+  my ($self, $name, $method, %args) = @_;
+  
+  die "Unknown delayed object '$name'"
+    unless exists $self->{container}{delayed}{$name};
+  
+  my $class = $self->{container}{delayed}{$name}{class}
+    or die "Unknown class for delayed object '$name'";
+
+  $self->_load_module($class);
+  return $class->$method( %{ $self->{container}{delayed}{$name}{args} }, %args );
+}
+
 sub create_contained_objects
 {
     # Typically $self doesn't exist yet, $_[0] is a string classname
@@ -151,12 +172,13 @@ sub create_contained_objects
 	next unless $contained_class;
 
 	if ($delayed) {
-	    $args{"_delayed_$name"}{args} = $class->_get_contained_args($contained_class, \%args);
-	    $args{"_delayed_$name"}{class} = $contained_class;
+	    $args{container}{delayed}{$name}{args} = $class->_get_contained_args($contained_class, \%args);
+	    $args{container}{delayed}{$name}{class} = $contained_class;
 	} else {
 	    $args{$name} = $class->_make_contained_object($contained_class, \%args);
 	}
     }
+    $args{container} ||= {};
 
     return %args;
 }
@@ -164,16 +186,9 @@ sub create_contained_objects
 sub create_delayed_object
 {
     my ($self, $name, %args) = @_;
-
-    # It just has to exist.  An empty hash is fine.
-    die "Unknown delayed object '$name'"
-	unless exists $self->{"_delayed_$name"}{args};
-
-    my $class = $self->{"_delayed_$name"}{class}
-	or die "Unknown class for delayed object '$name'";
-
-    $self->_load_module($class);
-    return $class->new( %{ $self->{"_delayed_$name"}{args} }, %args );
+    $args{container}{container} = $self;
+    weaken($args{container}{container}) if $INC{'WeakRef.pm'} || $INC{'Scalar/Util.pm'};
+    return $self->call_method($name, 'new', %args);
 }
 
 sub delayed_object_params
@@ -181,14 +196,14 @@ sub delayed_object_params
     my ($self, $name, %args) = @_;
 
     die "Unknown delayed object '$name'"
-	unless exists $self->{"_delayed_$name"}{args};
+	unless exists $self->{container}{delayed}{$name};
 
     if (%args)
     {
-	@{ $self->{"_delayed_$name"}{args} }{ keys(%args) } = values(%args);
+	@{ $self->{container}{delayed}{$name}{args} }{ keys(%args) } = values(%args);
     }
 
-    return %{ $self->{"_delayed_$name"}{args} };
+    return %{ $self->{container}{delayed}{$name}{args} };
 }
 
 sub _get_contained_args
@@ -344,13 +359,7 @@ sub validation_spec
 	@p{keys %$superparams} = values %$superparams;
     }
 
-    # We may need to allow some '_delayed_$name' parameters
-    my %specs = $class->get_contained_objects;
-    while (my ($name, $spec) = each %specs) {
-	next unless ref $spec;
-	next unless $spec->{delayed};
-	$p{"_delayed_$name"} = { type => HASHREF };
-    }
+    $p{container} = { type => HASHREF };
 
     return \%p;
 }
