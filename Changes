@@ -1,6 +1,6 @@
 Revision history for Perl extension Class::Framework.
 
-0.12
+0.12  Sun Jan 23 21:02:35 CST 2005
 
  - Fixed a bug in the container() method, which was only returning
    valid results for delayed objects, not auto-created ones. [Spotted

@@ -1,6 +1,6 @@
 package Class::Container;
 
-$VERSION = '0.11';
+$VERSION = '0.12';
 $VERSION = eval $VERSION if $VERSION =~ /_/;
 
 my $HAVE_WEAKEN;
