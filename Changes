@@ -1,5 +1,32 @@
 Revision history for Perl extension Class::Framework.
 
+0.07  Tue Jul 23 00:34:34 PDT 2002
+
+ - Fix a bug in passing contained objects rather than using the
+   defaultly created one. [found by Ilya Martynov <ilya@martynov.org>]
+
+ - Calling container() when Scalar::Util is not installed now triggers
+   a fatal error instead of returning undef
+
+ - Get rid off the %ALLOWED_CACHE memoization, since it wasn't working
+   properly.  It could be done, but not as easily, so maybe it's a
+   future project. [consistent prodding by Dave Rolsky]
+
+ - Replace guts of get_contained_object_spec() and validation_spec()
+   with an _iterate_ISA() internal method.  This fixes a bug in
+   validation_spec() in which subclasses weren't overriding superclass
+   validation_spec()s.
+
+ - Make valid_params() a standard get/set accessor method.
+
+ - Document that valid_params() should only be called as a class
+   method, not object method.
+
+ - Improve the output of the show_containers() method.
+
+ - Calling contained_objects() twice on the same package wasn't
+   properly clearing previous entries.
+
 0.06  Wed Jul 17 17:06:10 EST 2002
 
  - Memoize the get_contained_object_spec(), validation_spec(), and
