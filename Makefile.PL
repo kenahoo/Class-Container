@@ -1,7 +1,7 @@
 
 use ExtUtils::MakeMaker;
 
-my $module = 'Class::Pluggable';
+my $module = 'Class::Container';
 my ($name, $dir);
 ($name = $module) =~ s/.*::(\w+)/$1.pm/;
 ($dir  = $module) =~ s/::/-/g;
@@ -19,7 +19,8 @@ WriteMakefile
              },
    # 'clean' => {FILES => "t/httpd.conf t/error_log t/httpd"},
    'PREREQ_PM' => {
-		   # Foo::Ey => '1.00',
+		   Params::Validate => '0.14',
+		   Exception::Class => '1.00',
 		  },
    ($] >= 5.005 ?    ## Add these new keywords supported since 5.005
     (ABSTRACT_FROM => $name, # retrieve abstract from module

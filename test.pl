@@ -4,7 +4,7 @@ use strict;
 
 use Test;
 BEGIN {plan tests => 6};
-use Class::Pluggable;
+use Class::Container;
 
 use Params::Validate;
 
@@ -12,7 +12,7 @@ use Params::Validate;
 {
   no strict 'refs';
   foreach my $class (qw(Parent Boy Son Slingshot Daughter)) {
-    push @{$class.'::ISA'}, 'Class::Pluggable';
+    push @{$class.'::ISA'}, 'Class::Container';
     # I could use an anonymous subref here, but that makes error
     # messages hard to read.  Use eval"" instead.
     eval sprintf <<'EOF', $class;
