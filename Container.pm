@@ -3,8 +3,13 @@ $VERSION = '0.01_05';     # Underscore in string makes it a beta for CPAN
 $VERSION = eval $VERSION; # Number makes it correct for perl
 
 BEGIN {
-  eval "use Scalar::Util qw(weaken)"; # Optional
+  eval {
+    require Scalar::Util;
+    Scalar::Util->import('weaken');
+  };
   warn "Scalar::Util not detected - memory leaks may result\n" if $@ and $^W;
+  
+  *weaken = sub {} unless defined &weaken;
 }
 
 use strict;
@@ -40,7 +45,6 @@ sub new
     my $proto = shift;
     my $class = ref $proto || $proto;
     my @args = $class->create_contained_objects(@_);
-    local $Params::Validate::called = "$class->new()";
     return bless {validate @args, $class->validation_spec}, $class;
 }
 
@@ -201,7 +205,7 @@ sub create_delayed_object
 {
     my ($self, $name, %args) = @_;
     $args{container}{container} = $self;
-    weaken($args{container}{container}) if $INC{'Scalar/Util.pm'};
+    weaken($args{container}{container});
     return $self->call_method($name, 'new', %args);
 }
 
@@ -289,18 +293,18 @@ sub allowed_params
 
 	# Can accept a 'foo_class' parameter instead of a 'foo' parameter
 	# If neither parameter is present, give up - perhaps it's optional
-	my $low_class = "${name}_class";
+	my $class_name_param = "${name}_class";
 
-	if ( exists $args->{$low_class} )
+	if ( exists $args->{$class_name_param} )
 	{
 	    delete $p{$name};
-	    $p{$low_class} = { type => SCALAR, parse => 'string' };  # A loose spec
+	    $p{$class_name_param} = { type => SCALAR, parse => 'string' };  # A loose spec
 	}
 
 	# We have to get the allowed params for the contained object
 	# class.  That class could be overridden, in which case we use
 	# the new class provided.  Otherwise, we use our default.
-	my $spec = exists $args->{$low_class} ? $args->{$low_class} : $c{$name};
+	my $spec = exists $args->{$class_name_param} ? $args->{$class_name_param} : $c{$name};
 	my $contained_class = ref($spec) ? $spec->{class}   : $spec;
 
 	# we have to make sure it is loaded before we try calling
@@ -478,6 +482,11 @@ Instead, these objects will be created "on demand", potentially more
 than once.  The constructors will still enjoy the automatic passing of
 parameters to the correct class.  See the C<create_delayed_object()>
 for more.
+
+To declare an object as "delayed", call this method like this:
+
+  __PACKAGE__->contained_objects( train => { class => 'Big::Train',
+                                             delayed => 1 } );
 
 =head2 __PACKAGE__->valid_params()
 
