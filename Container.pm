@@ -3,12 +3,14 @@ package Class::Container;
 $VERSION = '0.02';
 $VERSION = eval $VERSION if $VERSION =~ /_/;
 
+my $HAVE_WEAKEN = 0;
 BEGIN {
   eval {
     require Scalar::Util;
     Scalar::Util->import('weaken');
+    $HAVE_WEAKEN = 1;
   };
-  warn "Scalar::Util not detected - memory leaks may result\n" if $@ and $^W;
+  warn "Scalar::Util not detected - memory leaks may result\n" if !$HAVE_WEAKEN and $^W;
   
   *weaken = sub {} unless defined &weaken;
 }
@@ -44,9 +46,15 @@ my %CONTAINED_OBJECTS = ();
 sub new
 {
     my $proto = shift;
-    my $class = ref $proto || $proto;
+    my $class = ref($proto) || $proto;
     my @args = $class->create_contained_objects(@_);
-    return bless {validate @args, $class->validation_spec}, $class;
+    return bless {
+		  validate_with(
+				params => \@args,
+				spec => $class->validation_spec,
+				called => "$class->new()",
+			       )
+		 }, $class;
 }
 
 sub all_specs
@@ -134,6 +142,7 @@ sub contained_objects
 
 sub container {
   my $self = shift;
+  return undef unless $HAVE_WEAKEN;
   return $self->{container}{container};
 }
 
@@ -205,8 +214,10 @@ sub create_contained_objects
 sub create_delayed_object
 {
     my ($self, $name, %args) = @_;
-    $args{container}{container} = $self;
-    weaken($args{container}{container});
+    if ($HAVE_WEAKEN) {
+	$args{container}{container} = $self;
+	weaken($args{container}{container});
+    }
     return $self->call_method($name, 'new', %args);
 }
 
@@ -580,10 +591,11 @@ I<including> parameters it will pass on to its own contained objects.
 Returns the object that created you.  This is remembered by storing a
 reference to that object, so we use the C<Scalar::Utils> C<weakref()>
 function to avoid persistent circular references that would cause
-memory leaks.  If you don't have C<Scalar::Utils> installed, you'll
-need to break these references yourself - future versions of this
-module will probably require C<Scalar::Utils>, or have an option to
-disable the C<< $self->container >> method.
+memory leaks.  
+
+If you don't have C<Scalar::Utils> installed, we don't make these
+references in the first place, and calling C<container()> will always
+return undef.
 
 In most cases you shouldn't care what object created you, so use this
 method sparingly.
