@@ -141,10 +141,16 @@ sub show_containers {
 
   while (my ($name, $spec) = each %$specs) {
     my $class = $args{args}{"${name}_class"} || $spec->{class};
-    $out .= $class->show_containers($name,
-				    indent => "$args{indent}  ",
-				    args => $spec->{args},
-				    delayed => $spec->{delayed});
+    $self->_load_module($class);
+
+    if ($class->isa(__PACKAGE__)) {
+      $out .= $class->show_containers($name,
+				      indent => "$args{indent}  ",
+				      args => $spec->{args},
+				      delayed => $spec->{delayed});
+    } else {
+      $out .= "$args{indent}  $name -> $class\n";
+    }
   }
 
   return $out;
@@ -165,6 +171,7 @@ sub contained_objects
 {
     my $class = shift;
     $class->_expire_caches;
+    $CONTAINED_OBJECTS{$class} = {};
     while (@_) {
       my ($name, $spec) = (shift, shift);
       $CONTAINED_OBJECTS{$class}{$name} = ref($spec) ? $spec : { class => $spec };
@@ -224,8 +231,8 @@ sub create_contained_objects
 	$container_stuff->{contained}{$name} = $to_create{$name};
 	$container_stuff->{contained}{$name}{delayed} = 1;
       } else {
-	$args{$name} = $to_create{$name}{class}->new(%{$to_create{$name}{args}});
-	$container_stuff->{contained}{$name}{class} = $to_create{$name}{class};
+	$args{$name} ||= $to_create{$name}{class}->new(%{$to_create{$name}{args}});
+	$container_stuff->{contained}{$name}{class} = ref $args{$name};
       }
     }
 
