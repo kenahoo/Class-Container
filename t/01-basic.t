@@ -3,7 +3,7 @@
 use strict;
 
 use Test;
-BEGIN { plan tests => 13, todo => [7] };
+BEGIN { plan tests => 15 };
 use Class::Container;
 
 use Params::Validate qw(:types);
