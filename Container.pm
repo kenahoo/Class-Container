@@ -210,10 +210,20 @@ sub create_delayed_object
     return $self->call_method($name, 'new', %args);
 }
 
+sub delayed_object_class
+{
+    my $self = shift;
+    my $name = shift;
+    die "Unknown delayed object '$name'"
+	unless exists $self->{container}{delayed}{$name};
+
+    $self->{container}{delayed}{$name}{class} = shift if @_;
+    return $self->{container}{delayed}{$name}{class};
+}
+
 sub delayed_object_params
 {
     my ($self, $name, %args) = @_;
-
     die "Unknown delayed object '$name'"
 	unless exists $self->{container}{delayed}{$name};
 
@@ -541,32 +551,42 @@ passed to the C<new()> method of the object being created, overriding
 any parameters previously passed to the container class constructor.
 (Could I possibly be more alliterative?  Veni, vedi, vici.)
 
-=head2 $self->delayed_object_params()
+=head2 $self->delayed_object_params($name, [params])
 
 Allows you to adjust the parameters that will be used to create any
 delayed objects in the future.  The first argument specifies the
 "name" of the object, and any additional arguments are key-value pairs
 that will become parameters to the delayed object.
 
+=head2 $self->delayed_object_class($name)
+
+Returns the class that will be used when creating delayed objects of
+the given name.  Use this sparingly - in most situations you shouldn't
+care what the class is.
+
 =head2 $self->validation_spec()
 
 Returns a hash reference suitable for passing to the
-C<Params::Validate> C<validate> function.  Does not include any
+C<Params::Validate> C<validate> function.  Does I<not> include any
 arguments that can be passed to contained objects.
 
 =head2 $self->allowed_params()
 
 Returns a hash reference of every parameter this class will accept,
-including parameters it will pass on to its own contained objects.
+I<including> parameters it will pass on to its own contained objects.
 
 =head2 $self->container()
 
 Returns the object that created you.  This is remembered by storing a
-reference to that object, so we use the C<Scalar::Utils>
-C<weakref()> function to avoid persistent circular references that
-would cause memory leaks.  If you don't have C<Scalar::Utils>
-installed, you'll need to break these references yourself - future
-versions of this module will probably require C<Scalar::Utils>.
+reference to that object, so we use the C<Scalar::Utils> C<weakref()>
+function to avoid persistent circular references that would cause
+memory leaks.  If you don't have C<Scalar::Utils> installed, you'll
+need to break these references yourself - future versions of this
+module will probably require C<Scalar::Utils>, or have an option to
+disable the C<< $self->container >> method.
+
+In most cases you shouldn't care what object created you, so use this
+method sparingly.
 
 =head1 SEE ALSO
 
