@@ -1,6 +1,13 @@
 Revision history for Perl extension Class::Framework.
 
-0.01  Wed Mar 20 19:33:40 2002
-	- original version; created by h2xs 1.21 with options
-		-XA -n Class::Framework
+0.01_05  Fri May 10 15:29:46 EST 2002
+ - Added the container() method, to get a reference to the thingy that
+   created you.  Uses weak references if Scalar::Util is available.
 
+ - Consolidated all Container metadata in $self->{container} (subject to
+   change to {_container} or something).
+
+ - Added call_method() method.
+
+0.01  Wed Mar 20 19:33:40 2002
+ - original version, based on HTML::Mason::Container
