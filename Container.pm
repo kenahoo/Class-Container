@@ -50,11 +50,10 @@ sub new
 {
     my $proto = shift;
     my $class = ref($proto) || $proto;
-    my @args = $class->create_contained_objects(@_);
     return bless {
 		  validate_with(
-				params => \@args,
-				spec => $class->validation_spec,
+				params => $class->create_contained_objects(@_),
+				spec   => $class->validation_spec,
 				called => "$class->new()",
 			       )
 		 }, $class;
@@ -196,12 +195,16 @@ sub call_method {
 sub create_contained_objects
 {
     # Typically $self doesn't exist yet, $_[0] is a string classname
-    my ($class, %args) = @_;
+    my $class = shift;
+
+    my $c = $class->get_contained_object_spec;
+    return {@_, container => {}} unless %$c;
+    
+    my %args = @_;
 
     # This one is special, don't pass to descendants
     my $container_stuff = delete($args{container}) || {};
 
-    my $c = $class->get_contained_object_spec;
     keys %$c; # Reset the iterator - why can't I do this in get_contained_object_spec??
     my %contained_args;
     my %to_create;
@@ -234,7 +237,7 @@ sub create_contained_objects
     delete @args{ grep {!exists $my_spec->{$_}} keys %contained_args };
 
     $args{container} = $container_stuff;
-    return %args;
+    return \%args;
 }
 
 sub create_delayed_object
