@@ -3,7 +3,7 @@
 use strict;
 
 use Test;
-BEGIN { plan tests => 28 };
+BEGIN { plan tests => 36 };
 use Class::Container;
 
 use Params::Validate qw(:types);
@@ -189,3 +189,42 @@ ok $@, '/Daughter/', $@;
   ok $string2, '/  document -> Document2 \(delayed\)/';
 }
 
+{
+  local @Top::ISA = qw(Class::Container);
+  'Top'->valid_params( document => {isa => 'Document1'} );
+  'Top'->contained_objects( document => 'Document1' );
+  
+  my $contained = 'Top'->get_contained_object_spec;
+  ok  $contained->{document};
+  ok !$contained->{collection}; # Shouldn't have anything left over from the last block
+  
+  local @Document1::ISA = qw(Class::Container);
+  'Document1'->valid_params( doc1 => {type => SCALAR} );
+  
+  local @Document2::ISA = qw(Class::Container);
+  'Document2'->valid_params( doc2 => {type => SCALAR} );
+  
+  my $allowed = 'Top'->allowed_params();
+  ok  $allowed->{doc1};
+  ok !$allowed->{doc2};
+  
+  $allowed = 'Top'->allowed_params( document_class => 'Document2' );
+  ok  $allowed->{doc2};
+  ok !$allowed->{doc1};
+}
+
+{
+  local @Top::ISA = qw(Class::Container);
+  'Top'->_expire_caches;
+  'Top'->valid_params( document => {isa => 'Document1'} );
+  'Top'->contained_objects( document => 'Document1' );
+  
+  local @Document1::ISA = qw(Class::Container);
+  'Document1'->valid_params();
+  local @Document2::ISA = qw(Document1);
+  'Document2'->valid_params();
+  
+  my $t = new Top( document => bless {}, 'Document2' );
+  ok $t;
+  ok ref($t->{document}), 'Document2';
+}
