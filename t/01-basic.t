@@ -3,7 +3,7 @@
 use strict;
 
 use Test;
-BEGIN {plan tests => 13, todo => [7]};
+BEGIN { plan tests => 13, todo => [7] };
 use Class::Container;
 
 use Params::Validate qw(:types);
@@ -34,7 +34,9 @@ my $SCALAR = SCALAR;   # So we don't have to keep importing it below
   package Boy;
   __PACKAGE__->valid_params( eyes => { default => 'brown', type => $SCALAR },
 			     toy => {isa => 'Toy'});
-  __PACKAGE__->contained_objects( toy => 'Slingshot' );
+  __PACKAGE__->contained_objects( toy => 'Slingshot',
+				  other_toys => {class => 'Toy', delayed => 1},
+				);
 }
 
 {
@@ -58,11 +60,14 @@ my $SCALAR = SCALAR;   # So we don't have to keep importing it below
   package StepDaughter;
   push @StepDaughter::ISA, 'Daughter';
   __PACKAGE__->valid_params( toy => {isa => 'Toy'} );
-  __PACKAGE__->contained_objects( toy => { class => 'Toy'} );
+  __PACKAGE__->contained_objects( toy => { class => 'Toy'},
+				  other_toys => {class => 'Toy', delayed => 1},
+				);
 }
 {
   push @StepSon::ISA, 'Son';
   push @Ball::ISA, 'Toy';
+  push @Streamer::ISA, 'Toy';
 }
 
 # Try making an object
@@ -105,6 +110,7 @@ ok $@, '/Daughter/', $@;
   ok my $p = eval {new Parent(mood => 'foo', parent_val => 1,
 			      daughter_class => 'StepDaughter',
 			      toy_class => 'Ball',
+			      other_toys_class => 'Streamer',
 			      son_class => 'StepSon')};
   warn $@ if $@;
 
@@ -118,4 +124,9 @@ ok $@, '/Daughter/', $@;
   # not properly passing 'toy_class' to both son & daughter classes.
   ok ref($d->{toy}), 'Ball';
   ok ref($p->{son}{toy}), 'Ball';
+
+  ok $d->delayed_object_class('other_toys'), 'Streamer';
+  ok $p->{son}->delayed_object_class('other_toys'), 'Streamer';
 }
+
+
