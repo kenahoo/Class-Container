@@ -3,7 +3,7 @@
 use strict;
 
 use Test;
-BEGIN { plan tests => 18 };
+BEGIN { plan tests => 24 };
 use Class::Container;
 
 use Params::Validate qw(:types);
@@ -153,3 +153,29 @@ ok $@, '/Daughter/', $@;
   my $child = 'Subclass'->new;
   ok ref($child->{foo}), 'Bar', 'Subclass contained_object should override superclass';
 }
+
+{
+  local @Top::ISA = qw(Class::Container);
+  'Top'->valid_params(      document => {isa => 'Document'} );
+  'Top'->contained_objects( document => 'Document',
+			    collection => {class => 'Collection', delayed => 1} );
+  
+  local @Collection::ISA = qw(Class::Container);
+  'Collection'->contained_objects( document => {class => 'Document', delayed => 1} );
+  
+  local @Document::ISA = qw(Class::Container);
+  local @Document2::ISA = qw(Document);
+  
+  my $k = new Top;
+  ok $k->contained_class('document'), 'Document';
+  my $collection = $k->create_delayed_object('collection');
+  ok ref($collection), 'Collection';
+  ok $collection->contained_class('document'), 'Document';
+
+  my $k2 = new Top(document_class => 'Document2');
+  ok $k2->contained_class('document'), 'Document2';
+  my $collection2 = $k2->create_delayed_object('collection');
+  ok ref($collection2), 'Collection';
+  ok $collection2->contained_class('document'), 'Document2';
+}
+
