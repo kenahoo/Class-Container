@@ -176,6 +176,7 @@ sub create_delayed_object
     my $class = $self->{"_delayed_$name"}{class}
 	or ParamError->throw(error => "Unknown class for delayed object '$name'");
 
+    $self->_load_module($class);
     return $class->new( %{ $self->{"_delayed_$name"}{args} }, %args );
 }
 
@@ -201,12 +202,7 @@ sub _get_contained_args
     ParamError->throw(error => "Invalid class name '$contained_class'")
 	unless $contained_class =~ /^[\w:]+$/;
 
-    unless ( eval { $contained_class->can('new') } )
-    {
-	no strict 'refs';
-	eval "use $contained_class";
-	GenericError->throw(error => $@) if $@;
-    }
+    $class->_load_module($contained_class);
 
     return {} unless $contained_class->can('allowed_params');
 
@@ -234,6 +230,17 @@ sub _make_contained_object
 
     my $contained_args = $class->_get_contained_args($contained_class, $args);
     return $contained_class->new(%$contained_args);
+}
+
+sub _load_module {
+    my ($self, $module) = @_;
+    
+    unless ( eval { $module->can('new') } )
+    {
+	no strict 'refs';
+	eval "use $module";
+	GenericError->throw(error => $@) if $@;
+    }
 }
 
 # Iterate through this object's @ISA and find all entries in
@@ -288,12 +295,7 @@ sub allowed_params
 
 	# we have to make sure it is loaded before we try calling
 	# ->allowed_params
-	unless ( eval { $contained_class->can('new') } )
-	{
-	    eval "use $contained_class";
-	    GenericError->throw(error => $@) if $@;
-	}
-
+	$class->_load_module($contained_class);
 	next unless $contained_class->can('allowed_params');
 
 	my $subparams = $contained_class->allowed_params($args);
