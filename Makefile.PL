@@ -1,6 +1,12 @@
 
 use ExtUtils::MakeMaker;
 
+unless (eval "use Scalar::Util; 1") {
+  warn("You seem not to have the Scalar::Util module installed.\n" .
+       "Its installation is highly recommended for Class::Container to avoid memory leaks.\n");
+  sleep 5;
+}
+
 my $module = 'Class::Container';
 my ($name, $dir);
 ($name = $module) =~ s/.*::(\w+)/$1.pm/;
