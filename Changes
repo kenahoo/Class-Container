@@ -1,5 +1,12 @@
 Revision history for Perl extension Class::Framework.
 
+0.08  Thu Aug 29 17:11:20 EST 2002
+
+ - Added the dump_parameters() method, which returns a hash reference
+   containing a set of parameters that should be sufficient to
+   re-create the given object using its class's C<new()> method (under
+   normal/simple circumstances).
+
 0.07  Tue Jul 23 00:34:34 PDT 2002
 
  - Fix a bug in passing contained objects rather than using the
