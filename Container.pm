@@ -325,28 +325,6 @@ sub _load_module {
     }
 }
 
-# Iterate through this object's @ISA and find all entries in
-# 'contained_objects' list.  Return as a hash.
-sub get_contained_object_spec
-{
-    my $class = ref($_[0]) || shift;
-    return $CONTAINED_CACHE{$class} if $CONTAINED_CACHE{$class};
-
-    my %c = %{ $CONTAINED_OBJECTS{$class} || {} };
-
-    no strict 'refs';
-    foreach my $superclass (@{ "${class}::ISA" }) {
-	next unless $superclass->isa(__PACKAGE__);
-	my $superparams = $superclass->get_contained_object_spec;
-	foreach my $key (keys %$superparams) {
-	  # Let subclass take precedence
-	  $c{$key} = $superparams->{$key} unless exists $c{$key};
-	}
-    }
-
-    return $CONTAINED_CACHE{$class} = \%c;
-}
-
 sub allowed_params
 {
     my $class = shift;
@@ -393,23 +371,34 @@ sub allowed_params
     return \%p;
 }
 
-sub validation_spec
-{
-    my $class = ref($_[0]) || shift;
-    return $VALID_CACHE{$class} if $VALID_CACHE{$class};
+sub _iterate_ISA {
+  my ($class, $look_in, $cache_in, $add_container) = @_;
 
-    my %p = %{ $VALID_PARAMS{$class} || {} };
+  return $cache_in->{$class} if $cache_in->{$class};
 
-    no strict 'refs';
-    foreach my $superclass (@{ "${class}::ISA" }) {
-	next unless $superclass->isa(__PACKAGE__);
-	my $superparams = $superclass->validation_spec;
-	@p{keys %$superparams} = values %$superparams;
-    }
+  my %out;
+  
+  no strict 'refs';
+  foreach my $superclass (@{ "${class}::ISA" }) {
+    next unless $superclass->isa(__PACKAGE__);
+    my $superparams = $superclass->_iterate_ISA($look_in, $cache_in, $add_container);
+    @out{keys %$superparams} = values %$superparams;
+  }
+  if (my $x = $look_in->{$class}) {
+    @out{keys %$x} = values %$x;
+  }
+  
+  $out{container} = { type => HASHREF } if $add_container;  # Urgh
 
-    $p{container} = { type => HASHREF };
+  return $cache_in->{$class} = \%out;
+}
 
-    return $VALID_CACHE{$class} = \%p;
+sub get_contained_object_spec {
+  return (ref($_[0]) || shift)->_iterate_ISA(\%CONTAINED_OBJECTS, \%CONTAINED_CACHE);
+}
+
+sub validation_spec {
+  return (ref($_[0]) || shift)->_iterate_ISA(\%VALID_PARAMS, \%VALID_CACHE, 1);
 }
 
 1;
