@@ -8,18 +8,18 @@ unless (eval "use Scalar::Util; 1") {
 }
 
 my $module = 'Class::Container';
-my ($name, $dir);
-($name = $module) =~ s/.*::(\w+)/$1.pm/;
+my ($file, $dir);
+($file = "lib/$module.pm") =~ s{::}{/}g;
 ($dir  = $module) =~ s/::/-/g;
 
 WriteMakefile
   (
    'NAME'       => $module,
-   'VERSION_FROM' => $name, # finds $VERSION
+   'VERSION_FROM' => $file, # finds $VERSION
    'dist' => { COMPRESS=>"gzip",
                SUFFIX=>"gz",
                PREOP=>('rm -f README; '.
-                       "pod2text -80 < $name > README; ".
+                       "pod2text -80 < $file > README; ".
                        "cp -f README $dir-\$(VERSION); "
                       ),
              },
@@ -28,7 +28,7 @@ WriteMakefile
 		  },
    'PL_FILES' => {},
    ($] >= 5.005 ?    ## Add these new keywords supported since 5.005
-    (ABSTRACT_FROM => $name, # retrieve abstract from module
+    (ABSTRACT_FROM => $file, # retrieve abstract from module
      AUTHOR     => 'Ken Williams <ken@mathforum.org>') : 
     ()
    ),
