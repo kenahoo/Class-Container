@@ -1,6 +1,6 @@
 package Class::Container;
 
-$VERSION = '0.08';
+$VERSION = '0.09';
 $VERSION = eval $VERSION if $VERSION =~ /_/;
 
 my $HAVE_WEAKEN = 0;
@@ -352,9 +352,15 @@ sub contained_class
 
 sub delayed_object_params
 {
-    my ($self, $name, %args) = @_;
+    my ($self, $name) = (shift, shift);
     die "Unknown delayed object '$name'"
 	unless $self->{container}{contained}{$name}{delayed};
+
+    if (@_ == 1) {
+	return $self->{container}{contained}{$name}{args}{$_[0]};
+    }
+
+    my %args = @_;
 
     if (keys %args)
     {
@@ -696,6 +702,10 @@ Allows you to adjust the parameters that will be used to create any
 delayed objects in the future.  The first argument specifies the
 "name" of the object, and any additional arguments are key-value pairs
 that will become parameters to the delayed object.
+
+When called with only a C<$name> argument and no list of parameters to
+set, returns a hash reference containing the parameters that will be
+passed when creating objects of this type.
 
 =head2 $self->delayed_object_class($name)
 
