@@ -444,13 +444,19 @@ The main features of C<Class::Container> are:
 
 =over 4
 
-=item * Declaration of parameters used by each member in a class
+=item *
+
+Declaration of parameters used by each member in a class
 framework
 
-=item * Transparent passing of constructor parameters to the class
+=item *
+
+Transparent passing of constructor parameters to the class
 that needs them
 
-=item * Ability to create one (automatic) or many (manual) contained
+=item *
+
+Ability to create one (automatic) or many (manual) contained
 objects automatically and transparently
 
 =back
