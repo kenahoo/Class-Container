@@ -431,7 +431,8 @@ Class::Container - Glues object frameworks together transparently
  sub new {
    my $package = shift;
    
-   # Build $self, possibly passing elements of @_ to 'ingredient' object
+   # Build $self, possibly passing elements of @_ to
+   # 'frog' or 'vegetables' objects
    my $self = $package->SUPER::new(@_);
 
    ... do any more initialization here ...
@@ -442,9 +443,10 @@ Class::Container - Glues object frameworks together transparently
 
 This class facilitates building frameworks of several classes that
 inter-operate.  It was first designed and built for C<HTML::Mason>, in
-which the Compiler, Lexer, Interpreter, Resolver, Component, Buffer, and several
-other objects must create each other transparently, passing the
-appropriate parameters to the right class.
+which the Compiler, Lexer, Interpreter, Resolver, Component, Buffer,
+and several other objects must create each other transparently,
+passing the appropriate parameters to the right class, possibly
+substituting their own subclass for any of these objects.
 
 The main features of C<Class::Container> are:
 
