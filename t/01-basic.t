@@ -8,74 +8,14 @@
 use strict;
 
 use Test;
-BEGIN { plan tests => 91 };
+BEGIN { plan tests => 67 }
+
 use Class::Container;
+use Params::Validate qw(:types);
+use File::Spec;
+require File::Spec->catfile('t', 'classes.pl');
 
 use Carp; $SIG{__DIE__} = \&Carp::confess;
-
-use Params::Validate qw(:types);
-my $SCALAR = SCALAR;   # So we don't have to keep importing it below
-
-# Create some boilerplate classes
-{
-  no strict 'refs';
-  foreach my $class (qw(Parent Boy Toy Daughter)) {
-    push @{$class.'::ISA'}, 'Class::Container';
-  }
-}
-
-# Define the relationships
-{
-  package Parent;
-  push @Parent::ISA, 'Foo';  # Make sure it works with non-container superclasses
-  # Has one son and several daughters
-  __PACKAGE__->valid_params( parent_val => { type => $SCALAR },
-			     son => {isa => 'Son'},
-			   );
-  __PACKAGE__->contained_objects( son => 'Son',
-				  daughter => {delayed => 1,
-					       class => 'Daughter'});
-}
-
-{
-  package Boy;
-  __PACKAGE__->valid_params( eyes => { default => 'brown', type => $SCALAR },
-			     toy => {isa => 'Toy'});
-  __PACKAGE__->contained_objects( toy => 'Slingshot',
-				  other_toys => {class => 'Toy', delayed => 1},
-				);
-}
-
-{
-  package Son;
-  push @Son::ISA, 'Boy';
-  __PACKAGE__->valid_params( mood => { type => $SCALAR } );
-}
-
-{
-  package Slingshot;
-  push @Slingshot::ISA, 'Toy';
-  __PACKAGE__->valid_params( weapon => { default => 'rock', type => $SCALAR } );
-}
-
-{
-  package Daughter;
-  __PACKAGE__->valid_params( hair => { default => 'short' } );
-}
-
-{
-  package StepDaughter;
-  push @StepDaughter::ISA, 'Daughter';
-  __PACKAGE__->valid_params( toy => {isa => 'Toy'} );
-  __PACKAGE__->contained_objects( toy => { class => 'Toy'},
-				  other_toys => {class => 'Toy', delayed => 1},
-				);
-}
-{
-  push @StepSon::ISA, 'Son';
-  push @Ball::ISA, 'Toy';
-  push @Streamer::ISA, 'Toy';
-}
 
 eval {new Daughter(hair => 'long')};
 ok $@, '', "Try making an object";
@@ -329,78 +269,6 @@ ok $@, '/Daughter/', "Make sure error messages contain the name of the class";
   Top->contained_objects();
   
   ok eval{ new Top };
-}
-
-# Decorator stuff
-{
-  local @Top::ISA = qw(Class::Container);
-  Top->valid_params(undef);
-  Top->contained_objects();
-  sub Top::foo { "foo" }
-  
-  local @Decorator::ISA = qw(Top);
-  Decorator->decorates;
-  sub Decorator::bar { "bar" }
-  
-  local @OtherDec::ISA = qw(Top);
-  OtherDec->decorates;
-  sub OtherDec::baz { "baz" }
-  
-  # Make sure a simple 1-level decorator works
-  {
-    my $d = new Decorator;
-    ok $d;
-    
-    ok $d->foo, 'foo';
-    ok $d->bar, 'bar';
-    
-    # Should be using simple subclassing since it's just 1 level (no interface for this)
-    ok !$d->{_decorates};
-    
-    # Make sure can() is correct
-    # Test.pm will run subrefs (don't want that), so make them booleans
-    ok !!$d->can('foo');
-    ok !!$d->can('bar');
-    ok  !$d->can('baz');
-  }
-  
-  # Try a 2-level decorator
-  {
-    my $d = new Decorator(decorate_class => 'OtherDec');
-    ok $d;
-    
-    ok !!$d->can('foo');
-    ok !!$d->can('bar');
-    ok !!$d->can('baz');
-    
-    ok $d->foo, 'foo';
-    ok $d->bar, 'bar';
-    ok $d->baz, 'baz';
-    
-    # Make sure it's using decoration containment at top level, and subclassing below.
-    ok $d->{_decorates};
-    ok ref($d->{_decorates}), 'OtherDec';
-    ok !$d->{_decorates}{_decorates};
-  }
-  
-  # Make sure arguments are passed correctly
-  Top->valid_params( one => { type => SCALAR } );
-  Decorator->valid_params( two => { type => SCALAR } );
-  Top->decorates;
-  Decorator->decorates;
-  OtherDec->decorates;
-  my $d = Decorator->new( one => 1, two => 2 );
-  ok $d;
-  
-  $d = OtherDec->new( decorate_class => 'Decorator', one => 1, two => 2 );
-  ok $d;
-  ok $d->{one}, 1;
-  ok $d->{_decorates}{two}, 2;
-
-  $d = Decorator->new( decorate_class => 'OtherDec', one => 1, two => 2 );
-  ok $d;
-  ok $d->{one}, 1;
-  ok $d->{two}, 2;
 }
 
 {
