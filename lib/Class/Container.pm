@@ -142,14 +142,14 @@ sub dump_parameters {
   
   foreach my $name (keys %{ $class->get_contained_object_spec }) {
     next unless ref($self);
-    my $subparams;
-    if ($self->{container}{contained}{$name}{delayed}) {
-      $subparams = $self->delayed_object_class($name)->dump_parameters;
-      my $more = $self->{container}{contained}{$name}{args};
-      $subparams->{$_} = $more->{$_} foreach keys %$more;
-    } else {
-      $subparams = $params{$name}->dump_parameters;
-    }
+    my $contained = ($self->{container}{contained}{$name}{delayed} ?
+		     $self->delayed_object_class($name) :
+		     $params{$name});
+    
+    my $subparams = UNIVERSAL::isa($contained, __PACKAGE__) ? $contained->dump_parameters : {};
+    
+    my $more = $self->{container}{contained}{$name}{args} || {};
+    $subparams->{$_} = $more->{$_} foreach keys %$more;
     
     @params{ keys %$subparams } = values %$subparams;
     delete $params{$name};
