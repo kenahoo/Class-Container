@@ -3,25 +3,17 @@
 use strict;
 
 use Test;
-BEGIN {plan tests => 6};
+BEGIN {plan tests => 7};
 use Class::Container;
 
-use Params::Validate;
+use Params::Validate qw(:types);
+my $SCALAR = SCALAR;   # So we don't have to keep importing it below
 
 # Create some boilerplate classes
 {
   no strict 'refs';
   foreach my $class (qw(Parent Boy Son Slingshot Daughter)) {
     push @{$class.'::ISA'}, 'Class::Container';
-    # I could use an anonymous subref here, but that makes error
-    # messages hard to read.  Use eval"" instead.
-    eval sprintf <<'EOF', $class;
-      sub %s::new {
-	my $package = shift;
-	my @args = $class->create_contained_objects(@_);
-	return bless { validate @args, $package->validation_spec }, $package;
-      }
-EOF
   }
 }
 
@@ -29,7 +21,7 @@ EOF
 {
   package Parent;
   # Has one son and several daughters
-  __PACKAGE__->valid_params( parent_val => { type => Params::Validate::SCALAR },
+  __PACKAGE__->valid_params( parent_val => { type => $SCALAR },
 			     son => {isa => 'Son'},
 			   );
   __PACKAGE__->contained_objects( son => 'Son',
@@ -39,7 +31,7 @@ EOF
 
 {
   package Boy;
-  __PACKAGE__->valid_params( eyes => { default => 'brown', type => Params::Validate::SCALAR },
+  __PACKAGE__->valid_params( eyes => { default => 'brown', type => $SCALAR },
 			     toy => {isa => 'Slingshot'});
   __PACKAGE__->contained_objects( toy => 'Slingshot' );
 }
@@ -47,12 +39,13 @@ EOF
 {
   package Son;
   push @Son::ISA, 'Boy';
-  __PACKAGE__->valid_params( mood => { type => Params::Validate::SCALAR } );
+  __PACKAGE__->valid_params( mood => { type => $SCALAR } );
+  __PACKAGE__->make_accessors(':all');
 }
 
 {
   package Slingshot;
-  __PACKAGE__->valid_params( weapon => { default => 'rock', type => Params::Validate::SCALAR } );
+  __PACKAGE__->valid_params( weapon => { default => 'rock', type => $SCALAR } );
 }
 
 {
@@ -74,6 +67,11 @@ ok eval {new Parent(%args)};
 
 # Make sure sub-objects are created with proper values
 ok eval {Parent->new(%args)->{son}->{mood} eq 'bubbly'};
+
+# Try using accessor
+ok eval {Parent->new(%args)->{son}->mood eq 'bubbly'};
+
+
 
 # Create a delayed object
 ok eval {my $p = new Parent(%args);
