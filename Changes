@@ -1,5 +1,11 @@
 Revision history for Perl extension Class::Framework.
 
+0.09
+
+ - Added support for "decorator" classes, via the decorates() method.
+
+ - Fixed the credits in the AUTHOR section to better reflect reality.
+
 0.08  Thu Aug 29 17:11:20 EST 2002
 
  - Added the dump_parameters() method, which returns a hash reference
