@@ -1,5 +1,34 @@
 Revision history for Perl extension Class::Framework.
 
+0.03  Fri Jun 21 17:44:37 EST 2002
+
+ - Subclasses can now override contained_objects settings of their
+   superclass (previously it was backwards).
+
+ - Let call_method() accept arbitrary additional parameters, don't
+   force them into a hash.
+
+ - Added contained_class() method.
+
+ - Use new contained_class() method inside call_method().
+
+ - delayed_object_class() shouldn't be settable, it'll mess up the
+   parameters accepted.
+
+ - The 'container' parameter shouldn't be shared among containers the way
+   other parameters are.
+
+ - Made create_delayed_object() a little more efficient by not shifting
+   things off @_ - just pass @_ to the next new() method.
+
+ - Don't check for $contained_class->can('allowed_params'), check for
+   $contained_class->isa(__PACKAGE__).
+
+ - Clarified a few error messages.
+
+ - Clarified documentation and removed a couple of doc errors.
+
+
 0.02  Wed Jun 19 10:52:48 AEST 2002
  - Made Scalar::Util a little more optional - the container() method
    is just a no-op if it's not around.
