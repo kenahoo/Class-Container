@@ -102,7 +102,6 @@ ok $@, '/Daughter/', $@;
 
 # Make sure we can override class names
 {
-  local $::verbose=1;
   ok my $p = eval {new Parent(mood => 'foo', parent_val => 1,
 			      daughter_class => 'StepDaughter',
 			      toy_class => 'Ball',
