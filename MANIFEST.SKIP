@@ -4,6 +4,7 @@
 CVS
 ^Makefile$
 ~$
+(^|/)\.
 \.SKIP$
 \.bak$
 ^pm_to_blib$
