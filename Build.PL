@@ -3,7 +3,10 @@ use Module::Build;
 my $b = Module::Build->subclass(code => join '', <DATA>)->new
   (
    module_name => 'Class::Container',
-   requires => { Params::Validate => '0.23' },
+   requires => {
+		Params::Validate => '0.23',
+		Carp => 0,
+	       },
    recommends => { Scalar::Util => 0 },
    license => 'perl',
   );
