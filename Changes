@@ -1,6 +1,6 @@
 Revision history for Perl extension Class::Framework.
 
-0.09
+0.09  Mon Feb 10 13:12:40 CST 2003
 
  - Use Carp::croak() instead of die() in most places when throwing a
    fatal error.
