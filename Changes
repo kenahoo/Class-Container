@@ -1,5 +1,11 @@
 Revision history for Perl extension Class::Framework.
 
+0.12
+
+ - Fixed a bug in the container() method, which was only returning
+   valid results for delayed objects, not auto-created ones. [Spotted
+   by Sebastian Willert]
+
 0.11  Wed Mar  3 21:34:51 CST 2004
 
  - Fixed a bug in the code that detects whether Scalar::Util is

@@ -8,12 +8,15 @@
 use strict;
 
 use Test;
-BEGIN { plan tests => 67 }
 
 use Class::Container;
 use Params::Validate qw(:types);
 use File::Spec;
 require File::Spec->catfile('t', 'classes.pl');
+
+my $HAVE_WEAKEN = 0 + exists $INC{'Scalar/Util.pm'};
+
+plan tests => 67 + 1*$HAVE_WEAKEN;
 
 use Carp; $SIG{__DIE__} = \&Carp::confess;
 
@@ -33,6 +36,10 @@ my $mood = eval {Parent->new(%args)->{son}->{mood}};
 ok $mood, 'bubbly';
 ok $@, '', "Make sure sub-objects are created with proper values";
 
+if ($HAVE_WEAKEN) {
+  my $p = Parent->new(%args);
+  ok $p->{son}->container, $p, "Container of son should be parent";
+}
 
 eval {my $p = new Parent(%args);
       $p->create_delayed_object('daughter')};

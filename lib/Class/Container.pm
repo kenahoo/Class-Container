@@ -50,11 +50,21 @@ sub new
 {
     my $proto = shift;
     my $class = ref($proto) || $proto;
-    return bless scalar validate_with(
-				      params => $class->create_contained_objects(@_),
-				      spec   => $class->validation_spec,
-				      called => "$class->new()",
-				     ), $class;
+    my $self = bless scalar validate_with
+      (
+       params => $class->create_contained_objects(@_),
+       spec   => $class->validation_spec,
+       called => "$class->new()",
+      ), $class;
+    if ($HAVE_WEAKEN) {
+      my $c = $self->get_contained_object_spec;
+      foreach my $name (keys %$c) {
+	next if $c->{$name}{delayed};
+	$self->{$name}{container}{container} = $self;
+	weaken $self->{$name}{container}{container};
+      }
+    }
+    return $self;
 }
 
 sub all_specs
@@ -251,7 +261,7 @@ sub decorates {
 
 sub container {
   my $self = shift;
-  die "The ", ref($self), "->container() method requires installation of Scalar::Utils" unless $HAVE_WEAKEN;
+  die "The ", ref($self), "->container() method requires installation of Scalar::Util" unless $HAVE_WEAKEN;
   return $self->{container}{container};
 }
 
