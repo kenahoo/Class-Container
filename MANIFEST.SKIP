@@ -7,3 +7,6 @@ CVS
 \.SKIP$
 \.bak$
 ^pm_to_blib$
+
+^Build$
+^_build
