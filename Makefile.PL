@@ -26,6 +26,7 @@ WriteMakefile
    'PREREQ_PM' => {
 		   Params::Validate => '0.23',
 		  },
+   'PL_FILES' => {},
    ($] >= 5.005 ?    ## Add these new keywords supported since 5.005
     (ABSTRACT_FROM => $name, # retrieve abstract from module
      AUTHOR     => 'Ken Williams <ken@mathforum.org>') : 
