@@ -1,5 +1,6 @@
 package Class::Container;
-$VERSION = 0.01_01;
+$VERSION = '0.01_01';
+$VERSION = eval $VERSION;
 
 use strict;
 
