@@ -1,0 +1,13 @@
+--- #YAML:1.0
+name: Class-Container
+version: 0.09
+license: perl
+distribution_type: module
+requires:
+  Carp: 0
+  Params::Validate: 0.23
+recommends:
+  Scalar::Util: 0
+build_requires: {}
+conflicts: {}
+generated_by: Module::Build version 0.15
