@@ -1,6 +1,19 @@
 Revision history for Perl extension Class::Framework.
 
 0.01_05  Fri May 10 15:29:46 EST 2002
+ - If a container has two contained classes that both need to see the a
+   parameter of the same name, it will now be passed to both.  Previously
+   it was passed to one of them, randomly.
+
+ - Added 2 tests for the above.
+
+ - Added 4 tests to make sure class names can be properly overridden.
+
+ - Got rid of _make_contained_object() method.
+
+ - Changed the (undocumented) get_contained_objects() method to
+   get_contained_object_spec().
+
  - Added the container() method, to get a reference to the thingy that
    created you.  Uses weak references if Scalar::Util is available.
 
