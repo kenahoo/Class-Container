@@ -8,7 +8,7 @@
 use strict;
 
 use Test;
-BEGIN { plan tests => 45 };
+BEGIN { plan tests => 50 };
 use Class::Container;
 
 use Params::Validate qw(:types);
@@ -272,4 +272,23 @@ ok $@, '/Daughter/', $@;
   
   ok 'Top'->valid_params;
   ok 'Top'->valid_params->{foo}{type}, SCALAR;
+}
+
+{
+  local @Top::ISA = qw(Class::Container);
+  Top->valid_params(foo => {type => SCALAR}, child => {isa => 'Child'});
+  Top->contained_objects(child => 'Child');
+  
+  local @Child::ISA = qw(Class::Container);
+  Child->valid_params(bar => {type => SCALAR});
+  Child->contained_objects();
+  
+  my $dump = Child->new(bar => 'BAR')->dump_parameters;
+  ok keys(%$dump), 1;
+  ok $dump->{bar}, 'BAR';
+  
+  $dump = Top->new(foo => 'FOO', bar => 'BAR')->dump_parameters;
+  ok keys(%$dump), 2;
+  ok $dump->{foo}, 'FOO';
+  ok $dump->{bar}, 'BAR';
 }
