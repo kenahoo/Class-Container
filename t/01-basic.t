@@ -1,9 +1,14 @@
 #!/usr/bin/perl -w
 
+# Note - I create a bunch of classes in these tests and then change
+# their valid_params() and contained_objects() lists several times.
+# This isn't really supported behavior of this module, but it's
+# necessary to do it in the tests.
+
 use strict;
 
 use Test;
-BEGIN { plan tests => 36 };
+BEGIN { plan tests => 46 };
 use Class::Container;
 
 use Params::Validate qw(:types);
@@ -227,4 +232,45 @@ ok $@, '/Daughter/', $@;
   my $t = new Top( document => bless {}, 'Document2' );
   ok $t;
   ok ref($t->{document}), 'Document2';
+}
+
+{
+  local @Top::ISA = qw(Class::Container);
+  'Top'->valid_params( document => {isa => 'Document'} );
+  'Top'->contained_objects( document => 'Document' );
+  
+  local @Document::ISA = qw(Class::Container);
+  'Document'->valid_params( sub => {isa => 'Class::Container'} );
+  'Document'->contained_objects( sub => 'Sub1' );
+  
+  local @Sub1::ISA = qw(Class::Container);
+  'Sub1'->valid_params( bar => {type => SCALAR} );
+  'Sub1'->contained_objects();
+
+  local @Sub2::ISA = qw(Class::Container);
+  'Sub2'->valid_params( foo => {type => SCALAR} );
+  'Sub2'->contained_objects();
+  
+  my $allowed = 'Top'->allowed_params();
+  ok  $allowed->{document};
+  ok  $allowed->{bar};
+  ok !$allowed->{foo};
+  
+  $allowed = 'Top'->allowed_params(sub_class => 'Sub2');
+  ok  $allowed->{document};
+  ok !$allowed->{bar};
+  ok  $allowed->{foo};
+}
+
+{
+  local @Top::ISA = qw(Class::Container);
+  Top->valid_params(foo => {type => SCALAR});
+  Top->contained_objects();
+  
+  ok 'Top'->valid_params;
+  ok 'Top'->valid_params->{foo}{type}, SCALAR;
+
+  my $t = new Top(foo => 1);
+  ok $t->valid_params;
+  ok $t->valid_params->{foo}{type}, SCALAR;
 }
