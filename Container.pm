@@ -1,6 +1,6 @@
 package Class::Container;
 
-$VERSION = '0.06';
+$VERSION = '0.07';
 $VERSION = eval $VERSION if $VERSION =~ /_/;
 
 my $HAVE_WEAKEN = 0;
@@ -43,7 +43,6 @@ Params::Validate::validation_options( on_fail => sub { die @_ } );
 my %VALID_PARAMS = ();
 my %CONTAINED_OBJECTS = ();
 my %VALID_CACHE = ();
-my %ALLOWED_CACHE = ();
 my %CONTAINED_CACHE = ();
 
 sub new
@@ -157,14 +156,16 @@ sub show_containers {
 }
 
 sub _expire_caches {
-  %ALLOWED_CACHE = %VALID_CACHE = %CONTAINED_CACHE = ();
+  %VALID_CACHE = %CONTAINED_CACHE = ();
 }
 
-sub valid_params
-{
-    my $class = shift;
+sub valid_params {
+  my $class = ref($_[0]) ? ref(shift) : shift;
+  if (@_) {
     $class->_expire_caches;
-    $VALID_PARAMS{$class} = {@_};
+    $VALID_PARAMS{$class} = @_ == 1 && !defined($_[0]) ? {} : {@_};
+  }
+  return $VALID_PARAMS{$class};
 }
 
 sub contained_objects
@@ -361,12 +362,6 @@ sub allowed_params
     # 'interp_class' does.
 
     my $c = $class->get_contained_object_spec;
-    my $signature = join ($;,
-			  map {$_, $args->{"${_}_class"}}
-			  grep exists($args->{"${_}_class"}),
-			  keys %$c);
-    return $ALLOWED_CACHE{$class}{$signature} if $ALLOWED_CACHE{$class}{$signature};
-
     my %p = %{ $class->validation_spec };
 
     foreach my $name (keys %$c)
@@ -396,7 +391,7 @@ sub allowed_params
 	}
     }
 
-    return $ALLOWED_CACHE{$class}{$signature} = \%p;
+    return \%p;
 }
 
 sub validation_spec
