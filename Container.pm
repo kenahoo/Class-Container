@@ -41,30 +41,6 @@ sub new
     return bless {validate @args, $class->validation_spec}, $class;
 }
 
-sub make_accessors {
-  my $class = shift;
-  my $params = $VALID_PARAMS{$class};
-  
-  my @to_create;
-  if ($_[0] eq ':all') {
-    @to_create = keys %$params;
-  } elsif ($_[0] eq ':except') {
-    my %not = map {$_ => 1} @_[1..$#_];
-    @to_create = grep {!$not{$_}} keys %$params;
-  } else {
-    @to_create = @_;
-  }
-
-  foreach my $name (@to_create) {
-    die "Invalid method name '$name'" unless $name =~ /^[_a-z]\w+$/i;
-    die "No data member named '$name'" unless exists $params->{$name};
-
-    # Create read-only accessors.  May expand later to read/write.
-    no strict 'refs';
-    *{"${class}::$name"} = sub { return $_[0]->{$name} };
-  }
-}
-
 sub all_specs
 {
     require B::Deparse;
@@ -166,8 +142,8 @@ sub create_contained_objects
 	    # We still need to delete any arguments that _would_ have
 	    # been given to this object's constructor (if the object
 	    # had not been given).  This allows a container class to
-	    # provide defaults for a contained object will still
-	    # accepting an already constructed object as one of its
+	    # provide defaults for a contained object while still
+	    # accepting an already-constructed object as one of its
 	    # params.
 	    #
 	    $class->_get_contained_args(ref $args{$name}, \%args);
@@ -246,7 +222,7 @@ sub _get_contained_args
 	$contained_args{$_} = $args->{$_} if exists $args->{$_};
 
 	# If both the container _and_ the contained object accept the
-	# same param we should not delete it.
+	# same param we should not delete it, it goes to both (policy???)
 	delete $args->{$_} unless exists $spec->{$_};
     }
     return \%contained_args;
@@ -270,6 +246,7 @@ sub get_contained_objects
 
     no strict 'refs';
     foreach my $superclass (@{ "${class}::ISA" }) {
+	next unless $superclass->can('get_contained_objects');
 	my %superparams = $superclass->get_contained_objects;
 	@c{keys %superparams} = values %superparams;  # Add %superparams to %c
     }
@@ -364,6 +341,7 @@ sub validation_spec
 
     no strict 'refs';
     foreach my $superclass (@{ "${class}::ISA" }) {
+	next unless $superclass->can('validation_spec');
 	my $superparams = $superclass->validation_spec;
 	@p{keys %$superparams} = values %$superparams;
     }
