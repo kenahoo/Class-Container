@@ -15,6 +15,7 @@ BEGIN {
 }
 
 use strict;
+use Carp;
 
 # The create_contained_objects() method lets one object
 # (e.g. Compiler) transparently create another (e.g. Lexer) by passing
@@ -130,13 +131,14 @@ sub dump_parameters {
   die "dump_parameters() can only be called as an object method, not a class method" unless $class;
   
   my %params;
-  foreach my $param (keys %{ $VALID_PARAMS{$class} }) {
-    my $spec = $VALID_PARAMS{$class}{$param};
+  foreach my $param (keys %{ $class->validation_spec }) {
+    next if $param eq 'container';
+    my $spec = $class->validation_spec->{$param};
     next if (exists $spec->{default} || $spec->{optional}) and !defined $self->{$param};
     $params{$param} = $self->{$param};
   }
   
-  foreach my $name (keys %{ $CONTAINED_OBJECTS{$class} }) {
+  foreach my $name (keys %{ $class->get_contained_object_spec }) {
     my $subparams = ($self->{container}{contained}{$name}{delayed} ?
 		     $self->{container}{contained}{$name}{args} :
 		     $params{$name}->dump_parameters);
@@ -187,7 +189,7 @@ sub valid_params {
     $class->_expire_caches;
     $VALID_PARAMS{$class} = @_ == 1 && !defined($_[0]) ? {} : {@_};
   }
-  return $VALID_PARAMS{$class};
+  return $VALID_PARAMS{$class} ||= {};
 }
 
 sub contained_objects
@@ -323,7 +325,7 @@ sub create_contained_objects
 sub create_delayed_object
 {
   my ($self, $name) = (shift, shift);
-  die "Unknown delayed item '$name'" unless $self->{container}{contained}{$name}{delayed};
+  croak "Unknown delayed item '$name'" unless $self->{container}{contained}{$name}{delayed};
 
   if ($HAVE_WEAKEN) {
     push @_, container => {container => $self};
@@ -336,7 +338,7 @@ sub delayed_object_class
 {
     my $self = shift;
     my $name = shift;
-    die "Unknown delayed item '$name'"
+    croak "Unknown delayed item '$name'"
 	unless $self->{container}{contained}{$name}{delayed};
 
     return $self->{container}{contained}{$name}{class};
@@ -345,7 +347,7 @@ sub delayed_object_class
 sub contained_class
 {
     my ($self, $name) = @_;
-    die "Unknown contained item '$name'"
+    croak "Unknown contained item '$name'"
 	unless my $spec = $self->{container}{contained}{$name};
     return $spec->{class};
 }
@@ -353,7 +355,7 @@ sub contained_class
 sub delayed_object_params
 {
     my ($self, $name) = (shift, shift);
-    die "Unknown delayed object '$name'"
+    croak "Unknown delayed object '$name'"
 	unless $self->{container}{contained}{$name}{delayed};
 
     if (@_ == 1) {
@@ -377,10 +379,10 @@ sub _get_contained_args
     my ($class, $name, $args) = @_;
     
     my $spec = $class->get_contained_object_spec->{$name}
-      or die "Unknown contained object '$name'";
+      or croak "Unknown contained object '$name'";
 
     my $contained_class = $args->{"${name}_class"} || $spec->{class};
-    die "Invalid class name '$contained_class'"
+    croak "Invalid class name '$contained_class'"
 	unless $contained_class =~ /^[\w:]+$/;
 
     $class->_load_module($contained_class);
@@ -402,7 +404,7 @@ sub _load_module {
     {
 	no strict 'refs';
 	eval "use $module";
-	die $@ if $@;
+	croak $@ if $@;
     }
 }
 
