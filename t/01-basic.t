@@ -3,7 +3,7 @@
 use strict;
 
 use Test;
-BEGIN { plan tests => 26 };
+BEGIN { plan tests => 28 };
 use Class::Container;
 
 use Params::Validate qw(:types);
@@ -174,6 +174,7 @@ ok $@, '/Daughter/', $@;
   ok $collection->contained_class('document'), 'Document';
 
   my $string = $k->show_containers;
+  ok $string, '/ collection -> Collection \(delayed\)/';
   ok $string, '/  document -> Document \(delayed\)/';
 
   my $k2 = new Top(document_class => 'Document2');
@@ -184,6 +185,7 @@ ok $@, '/Daughter/', $@;
   ok $collection2->contained_class('document'), 'Document2';
 
   my $string2 = $k2->show_containers;
+  ok $string2, '/ collection -> Collection \(delayed\)/';
   ok $string2, '/  document -> Document2 \(delayed\)/';
 }
 
