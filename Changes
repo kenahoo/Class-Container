@@ -1,5 +1,10 @@
 Revision history for Perl extension Class::Framework.
 
+0.10  Thu Mar  6 16:06:47 CST 2003
+
+ - The dump_parameters() method will now output the default values (if
+   any) of parameters that haven't been explicitly set.
+
 0.09  Mon Feb 10 13:12:40 CST 2003
 
  - Use Carp::croak() instead of die() in most places when throwing a
