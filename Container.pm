@@ -10,7 +10,6 @@ BEGIN {
     Scalar::Util->import('weaken');
     $HAVE_WEAKEN = 1;
   };
-  warn "Scalar::Util not detected - container() method not available\n" if !$HAVE_WEAKEN and $^W;
   
   *weaken = sub {} unless defined &weaken;
 }
@@ -181,7 +180,7 @@ sub contained_objects
 
 sub container {
   my $self = shift;
-  return undef unless $HAVE_WEAKEN;
+  die "The ", ref($self), "->container() method requires installation of Scalar::Utils" unless $HAVE_WEAKEN;
   return $self->{container}{container};
 }
 
@@ -666,16 +665,19 @@ accurate.
 Returns the object that created you.  This is remembered by storing a
 reference to that object, so we use the C<Scalar::Utils> C<weakref()>
 function to avoid persistent circular references that would cause
-memory leaks.  
+memory leaks.  If you don't have C<Scalar::Utils> installed, we don't
+make these references in the first place, and calling C<container()>
+will result in a fatal error.
 
-If you don't have C<Scalar::Utils> installed, we don't make these
-references in the first place, and calling C<container()> will always
-return undef.
+If you weren't created by another object via C<Class::Container>,
+C<container()> returns C<undef>.
 
 In most cases you shouldn't care what object created you, so use this
 method sparingly.
 
-=head2 $self->show_containers , 'Package'->show_containers
+=head2 $object->show_containers
+
+=head2 $package->show_containers
 
 This method returns a string meant to describe the containment
 relationships among classes.  You should not depend on the specific
