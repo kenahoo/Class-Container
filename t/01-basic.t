@@ -3,7 +3,7 @@
 use strict;
 
 use Test;
-BEGIN { plan tests => 24 };
+BEGIN { plan tests => 26 };
 use Class::Container;
 
 use Params::Validate qw(:types);
@@ -167,15 +167,23 @@ ok $@, '/Daughter/', $@;
   local @Document2::ISA = qw(Document);
   
   my $k = new Top;
+  print $k->show_containers;
   ok $k->contained_class('document'), 'Document';
   my $collection = $k->create_delayed_object('collection');
   ok ref($collection), 'Collection';
   ok $collection->contained_class('document'), 'Document';
 
+  my $string = $k->show_containers;
+  ok $string, '/  document -> Document \(delayed\)/';
+
   my $k2 = new Top(document_class => 'Document2');
+  print $k2->show_containers;
   ok $k2->contained_class('document'), 'Document2';
   my $collection2 = $k2->create_delayed_object('collection');
   ok ref($collection2), 'Collection';
   ok $collection2->contained_class('document'), 'Document2';
+
+  my $string2 = $k2->show_containers;
+  ok $string2, '/  document -> Document2 \(delayed\)/';
 }
 
