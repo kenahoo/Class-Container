@@ -1,7 +1,7 @@
 Revision history for Perl extension Class::Framework.
 
 0.01_05  Fri May 10 15:29:46 EST 2002
- - If a container has two contained classes that both need to see the a
+ - If a container has two contained classes that both need to see a
    parameter of the same name, it will now be passed to both.  Previously
    it was passed to one of them, randomly.
 
