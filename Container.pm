@@ -147,22 +147,25 @@ sub container {
 }
 
 sub call_method {
-  my ($self, $name, $method, %args) = @_;
+  my ($self, $name, $method, @args) = @_;
   
-  die "Unknown delayed object '$name'"
-    unless exists $self->{container}{delayed}{$name};
-  
-  my $class = $self->{container}{delayed}{$name}{class}
-    or die "Unknown class for delayed object '$name'";
+  my $class = $self->contained_class($name)
+    or die "Unknown contained item '$name'";
 
   $self->_load_module($class);
-  return $class->$method( %{ $self->{container}{delayed}{$name}{args} }, %args );
+  return $class->$method( %{ $self->{container}{delayed}{$name}{args} }, @args );
 }
 
+# Accepts a list of key-value pairs as parameters, representing all
+# parameters taken by this object and its descendants.  Returns a list
+# of key-value pairs representing *only* this object's parameters.
 sub create_contained_objects
 {
     # Typically $self doesn't exist yet, $_[0] is a string classname
     my ($class, %args) = @_;
+
+    # This one is special, don't pass to descendants
+    my $container_stuff = delete($args{container}) || {};
 
     my %c = $class->get_contained_object_spec;
     my %contained_args;
@@ -191,13 +194,14 @@ sub create_contained_objects
 	next unless $contained_class;
 
 	my $c_args = $class->_get_contained_args($contained_class, \%args);
-	@contained_args{ keys %$c_args } = ();
+	@contained_args{ keys %$c_args } = ();  # Populate with keys
 
 	if ($delayed) {
-	  $args{container}{delayed}{$name}{args} = $c_args;
-	  $args{container}{delayed}{$name}{class} = $contained_class;
+	  $container_stuff->{delayed}{$name}{args} = $c_args;
+	  $container_stuff->{delayed}{$name}{class} = $contained_class;
 	} else {
 	  $args{$name} = $contained_class->new(%$c_args);
+	  $container_stuff->{contained}{$name}{class} = $contained_class;
 	}
     }
 
@@ -206,30 +210,36 @@ sub create_contained_objects
     my $my_spec = $class->validation_spec;
     delete @args{ grep {!exists $my_spec->{$_}} keys %contained_args };
 
-    $args{container} ||= {};
-
+    $args{container} = $container_stuff;
     return %args;
 }
 
 sub create_delayed_object
 {
-    my ($self, $name, %args) = @_;
-    if ($HAVE_WEAKEN) {
-	$args{container}{container} = $self;
-	weaken($args{container}{container});
-    }
-    return $self->call_method($name, 'new', %args);
+  my ($self, $name) = (shift, shift);
+  if ($HAVE_WEAKEN) {
+    push @_, container => {container => $self};
+    weaken $_[-1]->{container};
+  }
+  return $self->call_method($name, 'new', @_);
 }
 
 sub delayed_object_class
 {
     my $self = shift;
     my $name = shift;
-    die "Unknown delayed object '$name'"
+    die "Unknown delayed item '$name'"
 	unless exists $self->{container}{delayed}{$name};
 
-    $self->{container}{delayed}{$name}{class} = shift if @_;
     return $self->{container}{delayed}{$name}{class};
+}
+
+sub contained_class
+{
+    my ($self, $name) = @_;
+    die "Unknown contained item '$name'"
+	unless my $spec = $self->{container}{contained}{$name} || $self->{container}{delayed}{$name};
+    return $spec->{class};
 }
 
 sub delayed_object_params
@@ -255,7 +265,7 @@ sub _get_contained_args
 
     $class->_load_module($contained_class);
 
-    return {} unless $contained_class->can('allowed_params');
+    return {} unless $contained_class->isa(__PACKAGE__);
 
     # Everything this class will accept, including parameters it will
     # pass on to its own contained objects
@@ -291,7 +301,10 @@ sub get_contained_object_spec
     foreach my $superclass (@{ "${class}::ISA" }) {
 	next unless $superclass->isa(__PACKAGE__);
 	my %superparams = $superclass->get_contained_object_spec;
-	@c{keys %superparams} = values %superparams;  # Add %superparams to %c
+	foreach my $key (keys %superparams) {
+	  # Let subclass take precedence
+	  $c{$key} = $superparams{$key} unless exists $c{$key};
+	}
     }
 
     return %c;
@@ -431,7 +444,7 @@ Class::Container - Glues object frameworks together transparently
 
 This class facilitates building frameworks of several classes that
 inter-operate.  It was first designed and built for C<HTML::Mason>, in
-which the Compiler, Lexer, Interpreter, Resolver, Buffer, and several
+which the Compiler, Lexer, Interpreter, Resolver, Component, Buffer, and several
 other objects must create each other transparently, passing the
 appropriate parameters to the right class.
 
@@ -446,16 +459,12 @@ framework
 that needs them
 
 =item * Ability to create one (automatic) or many (manual) contained
-objects automatically
-
-=item * Automatic checking of duplicate class parameter names
+objects automatically and transparently
 
 =back
 
 The most important methods provided are C<valid_params()> and
-C<contained_objects()>, both of which are class methods.  There is
-B<not> a C<new()> method, that is expected to be defined in a derived
-class.
+C<contained_objects()>, both of which are class methods.
 
 =head1 METHODS
 
@@ -467,7 +476,7 @@ class, or by calling C<SUPER::new(@_)> as indicated in the SYNOPSIS.
 The C<new()> method ensures that the proper parameters and objects are
 passed to the proper constructor methods.
 
-A the moment, the only possible constructor method is C<new()>.  If
+At the moment, the only possible constructor method is C<new()>.  If
 you need to create other constructor methods, they should also call
 C<SUPER::new()>, or possibly even your class's C<new()> method.
 
@@ -490,16 +499,17 @@ HTML::Mason::Compiler->new() >> method will accept a C<lexer>
 parameter and, if no such parameter is given, an object of the
 C<HTML::Mason::Lexer> class should be constructed.
 
-We also implement a bit of magic here, so that if C<<
+We implement a bit of magic here, so that if C<<
 HTML::Mason::Compiler->new() >> is called with a C<lexer_class>
-parameter, it will load the class, instantiate a new object of that
-given class, and use that for the C<lexer> object.  In fact, we're
-smart enough to notice if parameters given to C<<
-HTML::Mason::Compiler->new() >> actually should go to the C<lexer>
-contained object, and it will make sure that they get passed along.
+parameter, it will load the indicated class (presumably a subclass of
+C<HTML::Mason::Lexer>), instantiate a new object of that class, and
+use it for the Compiler's C<lexer> object.  We're also smart enough to
+notice if parameters given to C<< HTML::Mason::Compiler->new() >>
+actually should go to the C<lexer> contained object, and it will make
+sure that they get passed along.
 
 Furthermore, an object may be declared as "delayed", which means that
-an object I<won't> be created when its enclosing class is constructed.
+an object I<won't> be created when its containing class is constructed.
 Instead, these objects will be created "on demand", potentially more
 than once.  The constructors will still enjoy the automatic passing of
 parameters to the correct class.  See the C<create_delayed_object()>
