@@ -124,8 +124,6 @@ sub all_specs
     return %out;
 }
 
-# Something tells me that show_containers() could be simplified somehow...
-
 sub show_containers {
   my $self = shift;
   my $name = shift;
@@ -138,22 +136,14 @@ sub show_containers {
   $out .= "\n";
   return $out unless $self->isa(__PACKAGE__);
 
-  if (ref $self) {  # It's an object
-    while (my ($name, $spec) = each %{ $self->{container}{contained} } ) {
-      my $class = $args{args}{"${name}_class"} || $spec->{class};
-      $out .= $class->show_containers($name, indent => "$args{indent}  ", args => $spec->{args});
-    }
-    while (my ($name, $spec) = each %{ $self->{container}{delayed}   } ) {
-      my $class = $args{args}{"${name}_class"} || $spec->{class};
-      $out .= $class->show_containers($name, indent => "$args{indent}  ", args => $spec->{args}, delayed => 1);
-    }
-    
-  } else {  # It's a class
-    my $specs = $self->get_contained_object_spec;
-    while (my ($name, $spec) = each %$specs) {
-      my $class = $args{args}{"${name}_class"} || $spec->{class};
-      $out .= $class->show_containers($name, indent => "$args{indent}  ", args => $spec->{args}, delayed => $spec->{delayed});
-    }
+  my $specs = ref($self) ? $self->{container}{contained} : $self->get_contained_object_spec;
+
+  while (my ($name, $spec) = each %$specs) {
+    my $class = $args{args}{"${name}_class"} || $spec->{class};
+    $out .= $class->show_containers($name,
+				    indent => "$args{indent}  ",
+				    args => $spec->{args},
+				    delayed => $spec->{delayed});
   }
 
   return $out;
@@ -187,7 +177,7 @@ sub call_method {
     or die "Unknown contained item '$name'";
 
   $self->_load_module($class);
-  return $class->$method( %{ $self->{container}{delayed}{$name}{args} }, @args );
+  return $class->$method( %{ $self->{container}{contained}{$name}{args} }, @args );
 }
 
 # Accepts a list of key-value pairs as parameters, representing all
@@ -219,7 +209,8 @@ sub create_contained_objects
       delete $args{"${name}_class"};
 
       if ($spec->{delayed}) {
-	$container_stuff->{delayed}{$name} = $to_create{$name};
+	$container_stuff->{contained}{$name} = $to_create{$name};
+	$container_stuff->{contained}{$name}{delayed} = 1;
       } else {
 	$args{$name} = $to_create{$name}{class}->new(%{$to_create{$name}{args}});
 	$container_stuff->{contained}{$name}{class} = $to_create{$name}{class};
@@ -238,6 +229,8 @@ sub create_contained_objects
 sub create_delayed_object
 {
   my ($self, $name) = (shift, shift);
+  die "Unknown delayed item '$name'" unless $self->{container}{contained}{$name}{delayed};
+
   if ($HAVE_WEAKEN) {
     push @_, container => {container => $self};
     weaken $_[-1]->{container};
@@ -250,16 +243,16 @@ sub delayed_object_class
     my $self = shift;
     my $name = shift;
     die "Unknown delayed item '$name'"
-	unless exists $self->{container}{delayed}{$name};
+	unless $self->{container}{contained}{$name}{delayed};
 
-    return $self->{container}{delayed}{$name}{class};
+    return $self->{container}{contained}{$name}{class};
 }
 
 sub contained_class
 {
     my ($self, $name) = @_;
     die "Unknown contained item '$name'"
-	unless my $spec = $self->{container}{contained}{$name} || $self->{container}{delayed}{$name};
+	unless my $spec = $self->{container}{contained}{$name};
     return $spec->{class};
 }
 
@@ -267,14 +260,14 @@ sub delayed_object_params
 {
     my ($self, $name, %args) = @_;
     die "Unknown delayed object '$name'"
-	unless exists $self->{container}{delayed}{$name};
+	unless $self->{container}{contained}{$name}{delayed};
 
     if (keys %args)
     {
-	@{ $self->{container}{delayed}{$name}{args} }{ keys(%args) } = values(%args);
+	@{ $self->{container}{contained}{$name}{args} }{ keys %args } = values %args;
     }
 
-    return %{ $self->{container}{delayed}{$name}{args} };
+    return %{ $self->{container}{contained}{$name}{args} };
 }
 
 # Everything the specified contained object will accept, including
