@@ -1,5 +1,5 @@
 package Class::Container;
-$VERSION = 0.01;
+$VERSION = 0.01_01;
 
 use strict;
 
@@ -38,6 +38,30 @@ sub new
     my $class = ref $proto || $proto;
     my @args = $class->create_contained_objects(@_);
     return bless {validate @args, $class->validation_spec}, $class;
+}
+
+sub make_accessors {
+  my $class = shift;
+  my $params = $VALID_PARAMS{$class};
+  
+  my @to_create;
+  if ($_[0] eq ':all') {
+    @to_create = keys %$params;
+  } elsif ($_[0] eq ':except') {
+    my %not = map {$_ => 1} @_[1..$#_];
+    @to_create = grep {!$not{$_}} keys %$params;
+  } else {
+    @to_create = @_;
+  }
+
+  foreach my $name (@to_create) {
+    die "Invalid method name '$name'" unless $name =~ /^[_a-z]\w+$/i;
+    die "No data member named '$name'" unless exists $params->{$name};
+
+    # Create read-only accessors.  May expand later to read/write.
+    no strict 'refs';
+    *{"${class}::$name"} = sub { return $_[0]->{$name} };
+  }
 }
 
 sub all_specs
@@ -364,15 +388,23 @@ Class::Container - Glues object frameworks together transparently
 
 =head1 SYNOPSIS
 
- package Food;
+ package Candy;
  
  use Class::Container;
  use base qw(Class::Container);
  
- __PACKAGE__->valid_params(color  => {default => 'green'},
-                           flavor => {default => 'hog'});
+ __PACKAGE__->valid_params
+   (
+    color  => {default => 'green'},
+    flavor => {default => 'hog'},
+   );
  
- __PACKAGE__->contained_objects(ingredient => 'Food::Ingredient');
+ __PACKAGE__->contained_objects
+   (
+    frog       =>  'Food::TreeFrog',
+    vegetables => { class => 'Food::Ingredient',
+                    delayed => 1 },
+   );
  
  sub new {
    my $package = shift;
@@ -454,7 +486,13 @@ given class, and use that for the C<lexer> object.  In fact, we're
 smart enough to notice if parameters given to C<<
 HTML::Mason::Compiler->new() >> actually should go to the C<lexer>
 contained object, and it will make sure that they get passed along.
-This creation happens inside the C<create_contained_objects()> method.
+
+Furthermore, an object may be declared as "delayed", which means that
+an object I<won't> be created when its enclosing class is constructed.
+Instead, these objects will be created "on demand", potentially more
+than once.  The constructors will still enjoy the automatic passing of
+parameters to the correct class.  See the C<create_delayed_object()>
+for more.
 
 =head2 valid_params()
 
@@ -493,15 +531,48 @@ any extra entries like this are simply ignored, so you are free to put
 extra information in the specifications as long as it doesn't overlap
 with what C<Class::Container> or C<Params::Validate> are looking for.
 
+=head2 create_delayed_object()
+
+If a contained object was declared with C<< delayed => 1 >>, use this
+method to create an instance of the object.  Note that this is an
+object method, not a class method:
+
+   my $foo =       $self->create_delayed_object('foo', ...); # YES!
+   my $foo = __PACKAGE__->create_delayed_object('foo', ...); # NO!
+
+The first argument should be a key passed to the
+C<contained_objects()> method.  Any additional arguments will be
+passed to the C<new()> method of the object being created, overriding
+any parameters previously passed to the container class constructor.
+(Could I possibly be more alliterative?  Veni, vedi, vici.)
+
+=head2 delayed_object_params()
+
+Allows you to adjust the parameters that will be used to create any
+delayed objects in the future.  The first argument specifies the
+"name" of the object, and any additional arguments are key-value pairs
+that will become parameters to the delayed object.
+
+=head2 validation_spec()
+
+Returns a hash reference suitable for passing to the
+C<Params::Validate> C<validate> function.  Does not include any
+arguments that can be passed to contained objects.
+
+=head2 allowed_params()
+
+Returns a hash reference of every parameter this class will accept,
+including parameters it will pass on to its own contained objects.
+
 =head1 SEE ALSO
 
-L<HTML::Mason>
+L<Params::Validate>, L<HTML::Mason>
 
 =head1 AUTHOR
 
 Ken Williams <ken@mathforum.org>, based extremely heavily on
 collaborative work with Dave Rolsky <autarch@urth.org> and Jonathan
-Swartz <swartz@pobox.com>.
+Swartz <swartz@pobox.com> on the HTML::Mason project.
 
 =head1 COPYRIGHT
 
