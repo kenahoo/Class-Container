@@ -3,7 +3,7 @@
 use strict;
 
 use Test;
-BEGIN { plan tests => 15 };
+BEGIN { plan tests => 17 };
 use Class::Container;
 
 use Params::Validate qw(:types);
@@ -127,6 +127,25 @@ ok $@, '/Daughter/', $@;
 
   ok $d->delayed_object_class('other_toys'), 'Streamer';
   ok $p->{son}->delayed_object_class('other_toys'), 'Streamer';
+
+  # Special 'container' parameter shouldn't be shared among objects
+  ok ($p->{container} ne $p->{son}{container});
 }
 
 
+{
+  # Check that subclass contained_objects override superclass
+
+  local @Superclass::ISA = qw(Class::Container);
+  local @Subclass::ISA = qw(Superclass);
+  'Superclass'->valid_params( foo => {isa => 'Foo'} );
+  'Subclass'->valid_params(   foo => {isa => 'Bar'} );
+  'Superclass'->contained_objects( foo => 'Foo' );
+  'Subclass'->contained_objects(   foo => 'Bar' );
+  local @Bar::ISA = qw(Foo);
+  sub Foo::new { bless {}, 'Foo' }
+  sub Bar::new { bless {}, 'Bar' }
+
+  my $child = 'Subclass'->new;
+  ok ref($child->{foo}), 'Bar', 'Subclass contained_object should override superclass';
+}
