@@ -50,13 +50,11 @@ sub new
 {
     my $proto = shift;
     my $class = ref($proto) || $proto;
-    return bless {
-		  validate_with(
-				params => $class->create_contained_objects(@_),
-				spec   => $class->validation_spec,
-				called => "$class->new()",
-			       )
-		 }, $class;
+    return bless scalar validate_with(
+				      params => $class->create_contained_objects(@_),
+				      spec   => $class->validation_spec,
+				      called => "$class->new()",
+				     ), $class;
 }
 
 sub all_specs
