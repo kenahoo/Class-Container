@@ -124,12 +124,6 @@ sub all_specs
     return %out;
 }
 
-sub _showme {
-  my ($thing, $name, %args) = @_;
-  return $thing->show_containers($name, %args) if $thing->isa(__PACKAGE__);
-  return "$args{indent}$name -> $thing" . ($args{delayed} ? " (delayed)\n" : "\n");
-}
-
 # Something tells me that show_containers() could be simplified somehow...
 
 sub show_containers {
@@ -142,21 +136,23 @@ sub show_containers {
   my $out = "$args{indent}$name$self";
   $out .= " (delayed)" if $args{delayed};
   $out .= "\n";
+  return $out unless $self->isa(__PACKAGE__);
 
-  if (ref $self) {
-    # It's an object
+  if (ref $self) {  # It's an object
     while (my ($name, $spec) = each %{ $self->{container}{contained} } ) {
-      $out .= _showme($spec->{class}, $name, indent => "$args{indent}  ");
+      my $class = $args{args}{"${name}_class"} || $spec->{class};
+      $out .= $class->show_containers($name, indent => "$args{indent}  ", args => $spec->{args});
     }
     while (my ($name, $spec) = each %{ $self->{container}{delayed}   } ) {
-      $out .= _showme($spec->{class}, $name, indent => "$args{indent}  ", delayed => 1);
+      my $class = $args{args}{"${name}_class"} || $spec->{class};
+      $out .= $class->show_containers($name, indent => "$args{indent}  ", args => $spec->{args}, delayed => 1);
     }
     
-  } else {
-    # It's a class
+  } else {  # It's a class
     my $specs = $self->get_contained_object_spec;
     while (my ($name, $spec) = each %$specs) {
-      $out .= _showme($spec->{class}, $name, indent => "$args{indent}  ", delayed => $spec->{delayed});
+      my $class = $args{args}{"${name}_class"} || $spec->{class};
+      $out .= $class->show_containers($name, indent => "$args{indent}  ", args => $spec->{args}, delayed => $spec->{delayed});
     }
   }
 
@@ -211,10 +207,7 @@ sub create_contained_objects
 
     while (my ($name, $spec) = each %c) {
       # Figure out exactly which class to make an object of
-      my $contained_class = $args{"${name}_class"} || $spec->{class};
-      
-      my $c_args = $class->_get_contained_args($contained_class, \%args);
-      #my ($contained_class, $c_args) = $class->_get_contained_args($name, \%args);
+      my ($contained_class, $c_args) = $class->_get_contained_args($name, \%args);
       @contained_args{ keys %$c_args } = ();  # Populate with keys
       $to_create{$name}{class} = $contained_class;
       $to_create{$name}{args} = $c_args;
@@ -288,18 +281,17 @@ sub delayed_object_params
 # parameters it will pass on to its own contained objects.
 sub _get_contained_args
 {
-    my ($class, $contained_class, $args) = @_;
+    my ($class, $name, $args) = @_;
     
-    #my $spec = $class->get_contained_object_spec->{$name}
-    #  or die "Unknown contained object '$name'";
+    my $spec = $class->get_contained_object_spec->{$name}
+      or die "Unknown contained object '$name'";
 
-    #my $contained_class = $args->{"${name}_class"} || $spec->{class};
+    my $contained_class = $args->{"${name}_class"} || $spec->{class};
     die "Invalid class name '$contained_class'"
 	unless $contained_class =~ /^[\w:]+$/;
 
     $class->_load_module($contained_class);
-
-    return {} unless $contained_class->isa(__PACKAGE__);
+    return ($contained_class, {}) unless $contained_class->isa(__PACKAGE__);
 
     my $allowed = $contained_class->allowed_params($args);
 
