@@ -1,6 +1,6 @@
 Revision history for Perl extension Class::Framework.
 
-0.04
+0.04  Wed Jun 26 19:15:26 EST 2002
 
  - Add the show_containers() method, which should be a godsend during
    debugging.
