@@ -442,7 +442,7 @@ A the moment, the only possible constructor method is C<new()>.  If
 you need to create other constructor methods, they should also call
 C<SUPER::new()>, or possibly even your class's C<new()> method.
 
-=head2 contained_objects()
+=head2 __PACKAGE__->contained_objects()
 
 This class method is used to register what other objects, if any, a given
 class creates.  It is called with a hash whose keys are the parameter
@@ -476,7 +476,7 @@ than once.  The constructors will still enjoy the automatic passing of
 parameters to the correct class.  See the C<create_delayed_object()>
 for more.
 
-=head2 valid_params()
+=head2 __PACKAGE__->valid_params()
 
 The C<valid_params()> method is similar to the C<contained_objects()>
 method in that it is a class method that declares properties of the
@@ -513,7 +513,7 @@ any extra entries like this are simply ignored, so you are free to put
 extra information in the specifications as long as it doesn't overlap
 with what C<Class::Container> or C<Params::Validate> are looking for.
 
-=head2 create_delayed_object()
+=head2 $self->create_delayed_object()
 
 If a contained object was declared with C<< delayed => 1 >>, use this
 method to create an instance of the object.  Note that this is an
@@ -528,23 +528,32 @@ passed to the C<new()> method of the object being created, overriding
 any parameters previously passed to the container class constructor.
 (Could I possibly be more alliterative?  Veni, vedi, vici.)
 
-=head2 delayed_object_params()
+=head2 $self->delayed_object_params()
 
 Allows you to adjust the parameters that will be used to create any
 delayed objects in the future.  The first argument specifies the
 "name" of the object, and any additional arguments are key-value pairs
 that will become parameters to the delayed object.
 
-=head2 validation_spec()
+=head2 $self->validation_spec()
 
 Returns a hash reference suitable for passing to the
 C<Params::Validate> C<validate> function.  Does not include any
 arguments that can be passed to contained objects.
 
-=head2 allowed_params()
+=head2 $self->allowed_params()
 
 Returns a hash reference of every parameter this class will accept,
 including parameters it will pass on to its own contained objects.
+
+=head2 $self->container()
+
+Returns the object that created you.  This is remembered by storing a
+reference to that object, so we will use the C<Scalar::Utils>
+C<weakref()> function to avoid persistent circular references that
+would cause memory leaks.  If you don't have C<Scalar::Utils>
+installed, you'll need to break these references yourself - future
+versions of this module will probably require C<Scalar::Utils>.
 
 =head1 SEE ALSO
 
