@@ -130,6 +130,8 @@ sub _showme {
   return "$args{indent}$name -> $thing" . ($args{delayed} ? " (delayed)\n" : "\n");
 }
 
+# Something tells me that show_containers() could be simplified somehow...
+
 sub show_containers {
   my $self = shift;
   my $name = shift;
@@ -152,8 +154,8 @@ sub show_containers {
     
   } else {
     # It's a class
-    my %spec = $self->get_contained_object_spec;
-    while (my ($name, $spec) = each %spec) {
+    my $specs = $self->get_contained_object_spec;
+    while (my ($name, $spec) = each %$specs) {
       $out .= _showme($spec->{class}, $name, indent => "$args{indent}  ", delayed => $spec->{delayed});
     }
   }
@@ -203,7 +205,7 @@ sub create_contained_objects
     # This one is special, don't pass to descendants
     my $container_stuff = delete($args{container}) || {};
 
-    my %c = $class->get_contained_object_spec;
+    my %c = %{ $class->get_contained_object_spec };
     my %contained_args;
     my %to_create;
 
@@ -212,6 +214,7 @@ sub create_contained_objects
       my $contained_class = $args{"${name}_class"} || $spec->{class};
       
       my $c_args = $class->_get_contained_args($contained_class, \%args);
+      #my ($contained_class, $c_args) = $class->_get_contained_args($name, \%args);
       @contained_args{ keys %$c_args } = ();  # Populate with keys
       $to_create{$name}{class} = $contained_class;
       $to_create{$name}{args} = $c_args;
@@ -281,10 +284,16 @@ sub delayed_object_params
     return %{ $self->{container}{delayed}{$name}{args} };
 }
 
+# Everything the specified contained object will accept, including
+# parameters it will pass on to its own contained objects.
 sub _get_contained_args
 {
     my ($class, $contained_class, $args) = @_;
+    
+    #my $spec = $class->get_contained_object_spec->{$name}
+    #  or die "Unknown contained object '$name'";
 
+    #my $contained_class = $args->{"${name}_class"} || $spec->{class};
     die "Invalid class name '$contained_class'"
 	unless $contained_class =~ /^[\w:]+$/;
 
@@ -292,15 +301,13 @@ sub _get_contained_args
 
     return {} unless $contained_class->isa(__PACKAGE__);
 
-    # Everything this class will accept, including parameters it will
-    # pass on to its own contained objects
     my $allowed = $contained_class->allowed_params($args);
 
     my %contained_args;
     foreach (keys %$allowed) {
 	$contained_args{$_} = $args->{$_} if exists $args->{$_};
     }
-    return \%contained_args;
+    return ($contained_class, \%contained_args);
 }
 
 sub _load_module {
@@ -325,14 +332,14 @@ sub get_contained_object_spec
     no strict 'refs';
     foreach my $superclass (@{ "${class}::ISA" }) {
 	next unless $superclass->isa(__PACKAGE__);
-	my %superparams = $superclass->get_contained_object_spec;
-	foreach my $key (keys %superparams) {
+	my $superparams = $superclass->get_contained_object_spec;
+	foreach my $key (keys %$superparams) {
 	  # Let subclass take precedence
-	  $c{$key} = $superparams{$key} unless exists $c{$key};
+	  $c{$key} = $superparams->{$key} unless exists $c{$key};
 	}
     }
 
-    return %c;
+    return \%c;
 }
 
 sub allowed_params
@@ -350,7 +357,7 @@ sub allowed_params
 
     my %p = %{ $class->validation_spec };
 
-    my %c = $class->get_contained_object_spec;
+    my %c = %{ $class->get_contained_object_spec };
 
     foreach my $name (keys %c)
     {
