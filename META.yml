@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name: Class-Container
-version: 0.09
+version: 0.10
 license: perl
 distribution_type: module
 requires:
