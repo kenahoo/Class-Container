@@ -1,5 +1,37 @@
 Revision history for Perl extension Class::Framework.
 
+0.06  Wed Jul 17 17:06:10 EST 2002
+
+ - Memoize the get_contained_object_spec(), validation_spec(), and
+   allowed_params() methods.  This can give a big speed boost when
+   methods are called repeatedly, for example when using factory
+   methods.  All memoization caches are cleared when valid_params() or
+   contained_objects() is called.  The only known pitfall in the
+   caching is that a class that dynamically changes its @ISA will
+   probably mess things up.  Idea by Dave Rolsky.
+
+ - Use 'scalar validate_with()' inside new(), which may be faster.
+   Idea by Dave Rolsky.
+
+ - short-circuit create_contained_objects() if there are no contained
+   objects to create.  Idea by Dave Rolsky.
+
+ - return a reference from create_contained_objects() rather than a
+   list of key/value pairs.  This lets us pass it directly to validation
+   routines.
+
+ - Use the qr// format for regexes in the all_specs() method.
+
+ - Improve the docs for allowed_params() - it's a class method (not an
+   instance method), and it accepts a list of arguments that can
+   affect the return value.
+
+ - Don't copy as many hashes internally.  Pass by reference.
+
+ - Fixed some POD formatting problems.
+
+ - Now requires Params::Validate version 0.23
+
 0.05  Thu Jun 27 16:53:41 EST 2002
 
  - Fixed a problem in create_contained_objects() in which a 'foo_class'
