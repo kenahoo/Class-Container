@@ -123,6 +123,28 @@ sub all_specs
     return %out;
 }
 
+sub dump_parameters {
+  my $self = shift;
+  my $class = ref $self;
+  die "dump_parameters() can only be called as an object method, not a class method" unless $class;
+  
+  my %params;
+  foreach my $param (keys %{ $VALID_PARAMS{$class} }) {
+    my $spec = $VALID_PARAMS{$class}{$param};
+    next if (exists $spec->{default} || $spec->{optional}) and !defined $self->{$param};
+    $params{$param} = $self->{$param};
+  }
+  
+  foreach my $name (keys %{ $CONTAINED_OBJECTS{$class} }) {
+    my $subparams = ($self->{container}{contained}{$name}{delayed} ?
+		     $self->{container}{contained}{$name}{args} :
+		     $params{$name}->dump_parameters);
+    @params{ keys %$subparams } = values %$subparams;
+    delete $params{$name};
+  }
+  return \%params;
+}
+
 sub show_containers {
   my $self = shift;
   my $name = shift;
@@ -687,6 +709,34 @@ Currently, containment is shown by indentation, so the Interp object
 contains a resolver and a compiler, and a delayed request (or several
 delayed requests).  The compiler contains a lexer, and each request
 contains a delayed buffer (or several delayed buffers).
+
+=head2 $object->dump_parameters
+
+Returns a hash reference containing a set of parameters that should be
+sufficient to re-create the given object using its class's C<new()>
+method.  This is done by fetching the current value for each declared
+parameter (i.e. looking in C<$object> for hash entries of the same
+name), then recursing through all contained objects and doing the
+same.
+
+A few words of caution here.  First, the dumped parameters represent
+the I<current> state of the object, not the state when it was
+originally created.
+
+Second, a class's declared parameters may not correspond exactly to
+its data members, so it might not be possible to recover the former
+from the latter.  If it's possible but requires some manual fudging,
+you can override this method in your class, something like so:
+
+ sub dump_parameters {
+   my $self = shift;
+   my $dump = $self->SUPER::dump_parameters();
+   
+   # Perform fudgery
+   $dump->{incoming} = $self->{_private};
+   delete $dump->{superfluous};
+   return $dump;
+ }
 
 =head1 SEE ALSO
 
