@@ -8,7 +8,7 @@
 use strict;
 
 use Test;
-BEGIN { plan tests => 87 };
+BEGIN { plan tests => 91 };
 use Class::Container;
 
 use Carp; $SIG{__DIE__} = \&Carp::confess;
@@ -305,6 +305,21 @@ ok $@, '/Daughter/', "Make sure error messages contain the name of the class";
   ok $dump->{bar}, 'BAR';
   ok $dump->{baz}, 'BAZ';
   
+  
+  # Test default values in a delayed object
+  Top->valid_params(undef);
+  Top->contained_objects(child => {class => 'Child', delayed => 1});
+  
+  Child->valid_params(bar => {default => 4});
+  Child->contained_objects();
+
+  $dump = Top->new()->dump_parameters;
+  ok keys(%$dump), 1;
+  ok $dump->{bar}, 4;
+  
+  $dump = Top->new(bar => 6)->dump_parameters;
+  ok keys(%$dump), 1;
+  ok $dump->{bar}, 6;
 }
 
 {

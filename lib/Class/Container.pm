@@ -127,24 +127,30 @@ sub all_specs
 
 sub dump_parameters {
   my $self = shift;
-  my $class = ref $self;
-  die "dump_parameters() can only be called as an object method, not a class method" unless $class;
+  my $class = ref($self) || $self;
   
   my %params;
   foreach my $param (keys %{ $class->validation_spec }) {
     next if $param eq 'container';
     my $spec = $class->validation_spec->{$param};
-    if (!defined $self->{$param}) {
-      $params{$param} = $spec->{default} if exists $spec->{default};
-    } else {
+    if (ref($self) and defined $self->{$param}) {
       $params{$param} = $self->{$param};
+    } else {
+      $params{$param} = $spec->{default} if exists $spec->{default};
     }
   }
   
   foreach my $name (keys %{ $class->get_contained_object_spec }) {
-    my $subparams = ($self->{container}{contained}{$name}{delayed} ?
-		     $self->{container}{contained}{$name}{args} :
-		     $params{$name}->dump_parameters);
+    next unless ref($self);
+    my $subparams;
+    if ($self->{container}{contained}{$name}{delayed}) {
+      $subparams = $self->delayed_object_class($name)->dump_parameters;
+      my $more = $self->{container}{contained}{$name}{args};
+      $subparams->{$_} = $more->{$_} foreach keys %$more;
+    } else {
+      $subparams = $params{$name}->dump_parameters;
+    }
+    
     @params{ keys %$subparams } = values %$subparams;
     delete $params{$name};
   }
