@@ -1,6 +1,22 @@
 Revision history for Perl extension Class::Framework.
 
-0.01_05  Fri May 10 15:29:46 EST 2002
+0.02  Wed Jun 19 10:52:48 AEST 2002
+ - Made Scalar::Util a little more optional - the container() method
+   is just a no-op if it's not around.
+
+ - Use Params::Validate 0.18 new validate_with() method to set a
+   meaningful subroutine name in error messages
+
+ - Added the delayed_object_class() method
+
+ - Documented how delayed objects are declared and created [Dave
+   Rolsky]
+
+ - Added some tests for the above stuff
+
+ - Various documentation spruce-ups
+
+0.01_05  Fri May 10 15:29:46 AEST 2002
  - If a container has two contained classes that both need to see a
    parameter of the same name, it will now be passed to both.  Previously
    it was passed to one of them, randomly.
