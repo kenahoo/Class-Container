@@ -1,6 +1,7 @@
 package Class::Container;
-$VERSION = '0.01_05';     # Underscore in string makes it a beta for CPAN
-$VERSION = eval $VERSION; # Number makes it correct for perl
+
+$VERSION = '0.02';
+$VERSION = eval $VERSION if $VERSION =~ /_/;
 
 BEGIN {
   eval {
@@ -561,7 +562,7 @@ including parameters it will pass on to its own contained objects.
 =head2 $self->container()
 
 Returns the object that created you.  This is remembered by storing a
-reference to that object, so we will use the C<Scalar::Utils>
+reference to that object, so we use the C<Scalar::Utils>
 C<weakref()> function to avoid persistent circular references that
 would cause memory leaks.  If you don't have C<Scalar::Utils>
 installed, you'll need to break these references yourself - future
