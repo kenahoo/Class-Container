@@ -76,10 +76,7 @@ sub all_specs
 		$type = 'object';
 
 		if (exists $CONTAINED_OBJECTS{$class}{$name}) {
-		    $obj_class = $CONTAINED_OBJECTS{$class}{$name};
-		    $obj_class = $obj_class->{class} if ref $obj_class;
-
-		    $default = "$obj_class\->new";
+		    $default = "$CONTAINED_OBJECTS{$class}{$name}{class}->new";
 		}
 	    } else {
 		($type, $default) = ($spec->{parse}, $spec->{default});
@@ -119,13 +116,49 @@ sub all_specs
 
 	foreach my $name (sort keys %$contains)
 	{
-	    $out{$class}{contained_objects}{$name} = ref($contains->{$name}) 
-		? {map {$_, $contains->{$name}{$_}} qw(class delayed descr)}
-		: {class => $contains->{$name}, delayed => 0};
+	    $out{$class}{contained_objects}{$name} 
+	      = {map {$_, $contains->{$name}{$_}} qw(class delayed descr)};
 	}
     }
 
     return %out;
+}
+
+sub _showme {
+  my ($thing, $name, %args) = @_;
+  return $thing->show_containers($name, %args) if $thing->isa(__PACKAGE__);
+  return "$args{indent}$name -> $thing" . ($args{delayed} ? " (delayed)\n" : "\n");
+}
+
+sub show_containers {
+  my $self = shift;
+  my $name = shift;
+  my %args = (indent => '', @_);
+
+  $name = defined($name) ? "$name -> " : "";
+
+  my $out = "$args{indent}$name$self";
+  $out .= " (delayed)" if $args{delayed};
+  $out .= "\n";
+
+  if (ref $self) {
+    # It's an object
+    while (my ($name, $spec) = each %{ $self->{container}{contained} } ) {
+      $out .= _showme($spec->{class}, $name, indent => "$args{indent}  ");
+    }
+    while (my ($name, $spec) = each %{ $self->{container}{delayed}   } ) {
+      $out .= _showme($spec->{class}, $name, indent => "$args{indent}  ", delayed => 1);
+    }
+    
+  } else {
+    # It's a class
+    my %spec = $self->get_contained_object_spec;
+    while (my ($name, $spec) = each %spec) {
+      $out .= _showme($spec->{class}, $name, indent => "$args{indent}  ", delayed => $spec->{delayed});
+    }
+  }
+
+  return $out;
 }
 
 sub valid_params
@@ -137,7 +170,10 @@ sub valid_params
 sub contained_objects
 {
     my $class = shift;
-    $CONTAINED_OBJECTS{$class} = {@_};
+    while (@_) {
+      my ($name, $spec) = (shift, shift);
+      $CONTAINED_OBJECTS{$class}{$name} = ref($spec) ? $spec : { class => $spec };
+    }
 }
 
 sub container {
@@ -171,11 +207,9 @@ sub create_contained_objects
     my %contained_args;
 
     while (my ($name, $spec) = each %c) {
-	my $default_class = ref($spec) ? $spec->{class}   : $spec;
-	my $delayed       = ref($spec) ? $spec->{delayed} : 0;
 	if (exists $args{$name}) {
 	    # User provided an object
-	    die "Cannot provide a '$name' object, its creation is delayed" if $delayed;
+	    die "Cannot provide a '$name' object, its creation is delayed" if $spec->{delayed};
 
 	    # We still need to delete any arguments that _would_ have
 	    # been given to this object's constructor (if the object
@@ -190,13 +224,13 @@ sub create_contained_objects
 	}
 
 	# Figure out exactly which class to make an object of
-	my $contained_class = delete $args{"${name}_class"} || $default_class;
+	my $contained_class = delete $args{"${name}_class"} || $spec->{class};
 	next unless $contained_class;
 
 	my $c_args = $class->_get_contained_args($contained_class, \%args);
 	@contained_args{ keys %$c_args } = ();  # Populate with keys
 
-	if ($delayed) {
+	if ($spec->{delayed}) {
 	  $container_stuff->{delayed}{$name}{args} = $c_args;
 	  $container_stuff->{delayed}{$name}{class} = $contained_class;
 	} else {
@@ -248,7 +282,7 @@ sub delayed_object_params
     die "Unknown delayed object '$name'"
 	unless exists $self->{container}{delayed}{$name};
 
-    if (%args)
+    if (keys %args)
     {
 	@{ $self->{container}{delayed}{$name}{args} }{ keys(%args) } = values(%args);
     }
@@ -340,7 +374,7 @@ sub allowed_params
 	# class.  That class could be overridden, in which case we use
 	# the new class provided.  Otherwise, we use our default.
 	my $spec = exists $args->{$class_name_param} ? $args->{$class_name_param} : $c{$name};
-	my $contained_class = ref($spec) ? $spec->{class}   : $spec;
+	my $contained_class = ref($spec) ? $spec->{class} : $spec;
 
 	# we have to make sure it is loaded before we try calling
 	# ->allowed_params
@@ -609,6 +643,28 @@ return undef.
 
 In most cases you shouldn't care what object created you, so use this
 method sparingly.
+
+=head2 $self->show_containers , 'Package'->show_containers
+
+This method returns a string meant to describe the containment
+relationships among classes.  You should not depend on the specific
+formatting of the string, because I may change things in a future
+release to make it prettier.
+
+For example, the HTML::Mason code returns the following when you do
+C<< $interp->show_containers >>:
+
+ HTML::Mason::Interp=HASH(0x238944)
+   resolver -> HTML::Mason::Resolver::File
+   compiler -> HTML::Mason::Compiler::ToObject
+     lexer -> HTML::Mason::Lexer
+   request -> HTML::Mason::Request (delayed)
+     buffer -> HTML::Mason::Buffer (delayed)
+
+Currently, containment is shown by indentation, so the Interp object
+contains a resolver and a compiler, and a delayed request (or several
+delayed requests).  The compiler contains a lexer, and each request
+contains a delayed buffer (or several delayed buffers).
 
 =head1 SEE ALSO
 
