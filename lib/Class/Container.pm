@@ -1,9 +1,9 @@
 package Class::Container;
 
-$VERSION = '0.10';
+$VERSION = '0.11';
 $VERSION = eval $VERSION if $VERSION =~ /_/;
 
-my $HAVE_WEAKEN = 0;
+my $HAVE_WEAKEN;
 BEGIN {
   eval {
     require Scalar::Util;
