@@ -17,7 +17,6 @@ WriteMakefile
                        "cp -f README $dir-\$(VERSION); "
                       ),
              },
-   # 'clean' => {FILES => "t/httpd.conf t/error_log t/httpd"},
    'PREREQ_PM' => {
 		   Params::Validate => '0.14',
 		   Exception::Class => '1.00',
