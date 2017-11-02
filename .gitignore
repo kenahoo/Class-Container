@@ -1,3 +1,6 @@
 README
 blib
 _build
+.build
+cpanfile
+Class-Container-*
